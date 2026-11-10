@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Stimme fürs Möbelhaus (Englisch)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;800&display=swap">
+<style>
+/* Look: UI-Stil "Klar" aus dem Spiel. Oben Angaben, dann das Studio mit einem Wort, darunter alle Wörter, unten Abschicken. */
+:root {
+  --bg: #12171b; --glass: #1d252b; --line: #33414a; --fg: #eef3f4; --dim: #a5b3b9;
+  --teal: #6fe0c8; --on-teal: #08201b; --coal: #ffa552; --drink: #6cb6ff; --rec: #ff6b6b; --on-rec: #2b0808;
+  --font: "Overpass", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 var(--font);
+  padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 620px; margin: 0 auto; display: grid; gap: 24px; }
+h1 { font-size: 38px; line-height: 1.1; font-weight: 800; margin: 0 0 10px; text-wrap: balance; }
+h2 { font-size: 21px; font-weight: 800; margin: 0; }
+p { margin: 0; }
+.dim { color: var(--dim); }
+.panel { background: var(--glass); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 14px; }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+label.field { display: grid; gap: 5px; font-weight: 600; font-size: 14px; }
+select, input[type=text] { width: 100%; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 11px; min-height: 46px; }
+.todo { border-color: var(--teal); }
+:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+ul.tips { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+button { font: 800 16px var(--font); border-radius: 10px; padding: 12px 18px; min-height: 46px; cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--fg); }
+button.go { background: var(--teal); color: var(--on-teal); border-color: var(--teal); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.between { justify-content: space-between; }
+#studio { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; text-align: center; box-shadow: 0 10px 30px var(--bg); }
+@media (max-height: 760px) { #studio { position: static; } }
+#cWord { font-size: clamp(24px, 6vw, 40px); line-height: 1.05; font-weight: 800; overflow-wrap: anywhere; }
+#cMood { font-weight: 800; font-size: 18px; color: var(--teal); }
+#cMood.angry { color: var(--coal); }
+#rec { width: 100%; min-height: 64px; font-size: 20px; background: var(--rec); color: var(--on-rec); border-color: var(--rec); }
+#rec.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+#meter { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+#bar { height: 100%; width: 0; background: var(--teal); }
+#bar.hot { background: var(--rec); }
+#status { min-height: 24px; color: var(--dim); }
+#status.bad { color: var(--coal); }
+.nav > button { flex: 1 1 90px; padding-inline: 8px; }
+.group h3 { margin: 18px 0 6px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+.group h3 { color: var(--dim); } .group[data-g=core] h3 { color: var(--teal); }
+.group p.dim { font-size: 14px; margin-bottom: 4px; }
+.word { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--line); }
+.word b { font-size: 18px; min-width: 0; }
+.word small { display: block; color: var(--dim); font-weight: 400; font-size: 13px; }
+.chips { display: flex; gap: 6px; }
+.chip { min-height: 40px; padding: 6px 10px; font-size: 14px; font-weight: 600; }
+.chip.done { border-color: var(--teal); color: var(--teal); }
+.chip.cur { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.consent { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 11px; cursor: pointer; }
+.consent input { width: 20px; height: 20px; margin: 3px 0 0; accent-color: var(--teal); }
+#count { font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: no-preference) { #rec.on { animation: pulse 1.2s infinite; } @keyframes pulse { 50% { opacity: .75; } } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Sprich den Möbelhaus-Verkäufer auf Englisch</h1>
+    <p class="dim">In ShishaBarSim gibt es gegenüber der Bar ein Möbelhaus. Dort kaufen die Spieler Sofas, Tische, Deko und Geräte und tragen alles selbst über die Straße. Der Verkäufer an der Kasse bekommt deine Stimme. Hier nimmst du die <strong>englischen</strong> Sätze auf, direkt im Browser, das dauert etwa zehn Minuten. Die Stimmung ist dieselbe wie auf Deutsch, die Hinweise unter den Sätzen gelten auch hier.</p>
+  </header>
+
+  <section class="panel" aria-labelledby="h-you">
+    <h2 id="h-you">Deine Angaben</h2>
+    <div class="fields">
+      <label class="field">Dein Name
+        <input type="text" id="name" autocomplete="off" maxlength="40" placeholder="Vorname reicht">
+      </label>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-how">
+    <h2 id="h-how">Die Rolle</h2>
+    <p>Trocken, ein bisschen gelangweilt, aber nett. Er macht den Job schon lange und nimmt nichts zu ernst. Kein Verkaufs-Tamtam, eher der Typ, der beim Kassieren einen Spruch bringt.</p>
+    <h2>So klingt es gut</h2>
+    <ul class="tips">
+      <li><strong>Sprich, lies nicht vor:</strong> so, als stünde jemand vor deiner Kasse. Kleine Abweichungen vom Text sind okay.</li>
+      <li><strong>Ruhiger Raum:</strong> Mikrofon etwa eine Handbreit vom Mund, leicht zur Seite, damit es nicht pustet.</li>
+      <li><strong>Ablauf:</strong> Aufnahme drücken, Satz sprechen, Stopp drücken. Danach springt die Seite zum nächsten Satz. Beim ersten Mal fragt dein Browser nach dem Mikrofon, bitte erlauben. Am Computer geht es auch mit der Taste R.</li>
+      <li><strong>Nicht zufrieden?</strong> Tippe unten in der Liste auf den Satz und nimm ihn neu auf. Die alte Aufnahme wird ersetzt.</li>
+      <li><strong>Wenig Zeit?</strong> Die Sätze im Kern-Set sind die wichtigsten, der Rest ist Bonus.</li>
+    </ul>
+    <p class="dim">Deine Aufnahmen bleiben auf deinem Gerät, bis du sie selbst verschickst. Du kannst auch zwischendurch aufhören und später im selben Browser weitermachen.</p>
+  </section>
+
+  <section class="panel" id="studio" aria-label="Aufnahme">
+    <div class="row between"><span class="dim" id="count"></span><span id="cMood"></span></div>
+    <div id="cWord" aria-live="polite"></div>
+    <p class="dim" id="cHint"></p>
+    <div id="meter"><div id="bar"></div></div>
+    <button id="rec">Aufnahme</button>
+    <div class="row nav">
+      <button id="back">Zurück</button>
+      <button id="play">Anhören</button>
+      <button id="next">Weiter</button>
+    </div>
+    <p id="status" role="status"></p>
+  </section>
+
+  <section aria-labelledby="h-words">
+    <h2 id="h-words">Alle Sätze</h2>
+    <div id="words"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-send">
+    <h2 id="h-send">Fertig? Schick es mir</h2>
+    <label class="consent"><input type="checkbox" id="ok">
+      <span>Ich bin einverstanden, dass meine Aufnahme in ShishaBarSim verwendet wird, auch in der Version, die auf Steam verkauft wird. Dafür bekomme ich kein Geld.</span></label>
+    <p class="dim" id="sendHint"></p>
+    <div class="row">
+      <button class="go" id="save" disabled>ZIP herunterladen</button>
+      <button id="share" hidden disabled>Direkt teilen</button>
+    </div>
+    <p class="dim">Schick die ZIP-Datei per WhatsApp oder Discord an Marv. Sie landet meist im Download-Ordner.</p>
+    <div class="row"><button id="reset">Von vorn anfangen</button><span class="dim" id="resetHint"></span></div>
+  </section>
+</main>
+
+<script>
+// Reihenfolge und ids bestimmen die Dateinamen (<id>_<de|en>.wav): ids nie ändern, neue Sätze hinten anhängen.
+// Je Abschnitt: Auslöser im Spiel, Stimmung; je Satz: id, Deutsch, Englisch, Hinweis zur Betonung.
+const GROUPS = [
+  { g: 'core', title: 'Spieler kommt rein', mood: 'Freundlich, ohne Aufregung. Er schaut kurz hoch.', words: [
+    ['mh_gruss_01', 'Moin! Schau dich ruhig um.', 'Hey! Feel free to look around.'],
+    ['mh_gruss_02', 'Hallo! Wenn du was suchst, sag Bescheid.', 'Hi! Let me know if you need anything.'],
+    ['mh_gruss_03', 'Ah, Kundschaft. Herzlich willkommen.', 'Oh, a customer. Welcome, welcome.', 'leicht ironisch, als käme selten jemand'] ] },
+  { g: 'core', title: 'Kauf abgeschlossen', mood: 'Zufrieden, nebenbei beim Kassieren.', words: [
+    ['mh_kauf_01', 'Gute Wahl, das steht bei mir zu Hause auch.', 'Good choice. I\'ve got that one at home.'],
+    ['mh_kauf_02', 'Viel Spaß damit!', 'Enjoy!'],
+    ['mh_kauf_03', 'Passt. Tragen musst du allerdings selbst.', 'All set. You\'re carrying it yourself, though.', 'kleine Pause vor „allerdings“ / „though“'] ] },
+  { g: 'core', title: 'Großer Einkauf', mood: 'Ehrlich beeindruckt.', words: [
+    ['mh_grosskauf_01', 'Oha, da richtet sich jemand ein.', 'Whoa, someone\'s moving in.'],
+    ['mh_grosskauf_02', 'Soll ich dir die Tür aufhalten? … Nein? Okay.', 'Want me to get the door? … No? Okay.', 'Frage, kurze Pause, dann schulterzuckend'] ] },
+  { g: 'core', title: 'Zu wenig Geld', mood: 'Bedauernd, nicht von oben herab.', words: [
+    ['mh_pleite_01', 'Das reicht leider nicht ganz.', 'Sorry, that\'s not quite enough.'],
+    ['mh_pleite_02', 'Anschreiben gibt\'s bei uns nicht, tut mir leid.', 'Sorry, we don\'t do tabs here.'] ] },
+  { g: 'core', title: 'Spieler geht mit Einkauf', mood: 'Ruft hinterher, etwas lauter.', words: [
+    ['mh_tschuess_01', 'Bis zum nächsten Mal!', 'See you next time!'],
+    ['mh_tschuess_02', 'Pass auf der Straße auf, ja?', 'Watch the traffic out there, okay?', 'ernst gemeint, draußen fahren Autos'] ] },
+  { g: 'core', title: 'Spieler geht ohne Einkauf', mood: 'Gelassen, kein bisschen beleidigt.', words: [
+    ['mh_nurgucken_01', 'Nur gucken ist auch okay.', 'Just looking is fine too.'],
+    ['mh_nurgucken_02', 'Vielleicht beim nächsten Mal.', 'Maybe next time.'] ] },
+  { g: 'extra', title: 'Kurz vor Ladenschluss', mood: 'Müde, will nach Hause.', words: [
+    ['mh_schluss_01', 'Wir machen gleich zu, also flott.', 'We\'re closing soon, so make it quick.'],
+    ['mh_schluss_02', 'Fünf Minuten noch, dann ist hier Licht aus.', 'Five more minutes, then it\'s lights out.'] ] },
+  { g: 'extra', title: 'Erster Kunde am Morgen', mood: 'Noch nicht ganz wach.', words: [
+    ['mh_morgen_01', 'Der Erste heute. Kaffee hab ich noch keinen, aber Sofas.', 'First one today. No coffee yet, but plenty of sofas.'] ] },
+  { g: 'extra', title: 'Spieler steht lange rum', mood: 'Entspannt, ein bisschen verschmitzt.', words: [
+    ['mh_warten_01', 'Lass dir Zeit. Ich hab sowieso bis Feierabend.', 'Take your time. I\'m here till closing anyway.'],
+    ['mh_warten_02', 'Das Sofa da kann man übrigens probesitzen. Theoretisch.', 'You can test-sit that sofa, by the way. In theory.'] ] },
+  { g: 'extra', title: 'Spieler rennt durch den Laden', mood: 'Lauter, kurz aus der Ruhe gebracht.', words: [
+    ['mh_rennen_01', 'Hey, nicht rennen, das ist alles Ausstellungsware!', 'Hey, no running! That\'s all display stock!'] ] },
+  { g: 'extra', title: 'Zur gekauften Ware', mood: 'Fachmännisch, mit einem Augenzwinkern.', words: [
+    ['mh_ware_sitz_01', 'Da sitzen deine Gäste stundenlang drauf, glaub mir.', 'Trust me, your guests will sit on that for hours.', 'bei Sofas, Stühlen, Tischen'],
+    ['mh_ware_deko_01', 'Macht direkt was her, so ein bisschen Ambiente.', 'Instant atmosphere, that one.', 'bei Deko, Pflanzen, Lampen'],
+    ['mh_ware_geraet_01', 'Die läuft und läuft. Hat mein Chef gesagt.', 'That thing runs forever. Or so my boss says.', 'bei Spülmaschine und Geräten'],
+    ['mh_ware_teppich_01', 'Den musst du zu Hause nur noch ausrollen. Und gerade hinlegen. Viel Glück.', 'Just roll it out at home. And get it straight. Good luck.', 'bei Teppichen'],
+    ['mh_ware_stapel_01', 'Das willst du alles auf einmal tragen? Respekt.', 'You\'re carrying all that at once? Respect.', 'wenn jemand viele Kisten trägt'] ] },
+  { g: 'extra', title: 'Wiedererkennen', mood: 'Wie bei einem Stammkunden, den man mag.', words: [
+    ['mh_erstbesuch_01', 'Neu hier? Du bist doch der mit der Bar gegenüber, oder?', 'New here? You\'re the one with the bar across the street, right?', 'erster Besuch'],
+    ['mh_stamm_01', 'Na, schon wieder da? Läuft wohl gut drüben.', 'Back again? Business must be good over there.'],
+    ['mh_stamm_02', 'Dich kenn ich inzwischen besser als meine Kollegen.', 'I see you more than my coworkers at this point.'],
+    ['mh_level_01', 'Ich hab gehört, bei dir ist es abends richtig voll.', 'I hear your place gets packed at night.', 'wenn die Bar gut läuft'],
+    ['mh_gruppe_01', 'Ach, heute mit Verstärkung.', 'Oh, brought backup today.', 'wenn mehrere Spieler reinkommen'] ] },
+  { g: 'extra', title: 'Seltene Sprüche', mood: 'Kommen nur ab und zu. Trocken, fast beiläufig.', words: [
+    ['mh_gag_01', 'Die Schrauben liegen bei. Meistens.', 'Screws are included. Usually.'],
+    ['mh_gag_02', 'Aufbauanleitung? Brauchst du nicht, steht ja schon.', 'Assembly instructions? Don\'t need them, it\'s already built.'],
+    ['mh_gag_03', 'Ich würd ja mal rüberkommen, aber ich hab nie frei, wenn ihr offen habt.', 'I\'d come over sometime, but I\'m always working when you\'re open.'] ] },
+];
+const MAX_SECONDS = 12, MIN_PEAK = 0.03, MIN_SECONDS = 0.25;
+const $ = id => document.getElementById(id);
+const prefs = { get(k) { try { return localStorage.getItem(k) || ''; } catch { return ''; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} }, };
+
+let takes = new Map(); // key -> ArrayBuffer (WAV)
+let calls = [], cur = 0;
+let stream, ctx, analyser, recorder, stopTimer, player;
+
+// Aufnahmen überleben ein versehentliches Neuladen
+const idb = () => new Promise((ok, no) => {
+  const r = indexedDB.open('bar-stimmen-moebelhaus-en', 1); // eigene DB: gleiche Herkunft wie die Gäste-Seite
+  r.onupgradeneeded = () => r.result.createObjectStore('takes');
+  r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+});
+async function store(fn, mode = 'readwrite') {
+  const db = await idb();
+  return new Promise((ok, no) => {
+    const tx = db.transaction('takes', mode), req = fn(tx.objectStore('takes'));
+    tx.oncomplete = () => ok(req.result); tx.onerror = () => no(tx.error);
+  });
+}
+async function loadTakes() {
+  try {
+    const db = await idb(), s = db.transaction('takes').objectStore('takes');
+    await new Promise((ok, no) => {
+      const c = s.openCursor();
+      c.onsuccess = () => { if (!c.result) return ok(); takes.set(c.result.key, c.result.value); c.result.continue(); };
+      c.onerror = () => no(c.error);
+    });
+  } catch {} // ponytail: ohne IndexedDB (privates Fenster) leben die Aufnahmen nur bis zum Neuladen
+}
+
+function buildCalls() {
+  calls = [];
+  const langs = [[2, 'en']]; // Deutsch nimmt die Seite ../moebelhaus/ auf
+  for (const [l, code] of langs) for (const gr of GROUPS) for (const w of gr.words)
+    calls.push({ key: `${w[0]}_${code}`, word: w[l], note: w[3] || '', g: gr.g, mood: gr.mood,
+      title: gr.title + (langs.length > 1 ? (code === 'de' ? ' · Deutsch' : ' · Englisch') : '') });
+  cur = Math.min(cur, calls.length - 1);
+}
+const firstOpen = () => { const i = calls.findIndex(c => !takes.has(c.key)); return i < 0 ? calls.length - 1 : i; };
+
+function renderCurrent() {
+  const c = calls[cur];
+  $('cWord').textContent = '“' + c.word + '”';
+  $('cMood').textContent = c.title;
+  $('cMood').classList.toggle('angry', c.g === 'extra');
+  $('cHint').textContent = [c.mood, c.note].filter(Boolean).join(' · ');
+  const done = calls.filter(x => takes.has(x.key)).length;
+  $('count').textContent = `${done} von ${calls.length} aufgenommen`;
+  const recording = !!recorder;
+  $('rec').textContent = recording ? 'Stopp' : takes.has(c.key) ? 'Neu aufnehmen' : 'Aufnahme';
+  $('rec').classList.toggle('on', recording);
+  $('back').disabled = recording || cur === 0;
+  $('next').disabled = recording || cur === calls.length - 1;
+  $('play').disabled = recording || !takes.has(c.key);
+}
+
+function renderWords() {
+  const box = $('words');
+  box.replaceChildren();
+  let sec, lastGroup;
+  calls.forEach((c, i) => {
+    if (c.title !== lastGroup) {
+      lastGroup = c.title; sec = document.createElement('div'); sec.className = 'group'; sec.dataset.g = c.g;
+      const h = document.createElement('h3'); h.textContent = c.title + (c.g === 'core' ? ' · Kern-Set' : '');
+      const p = document.createElement('p'); p.className = 'dim'; p.textContent = c.mood;
+      sec.append(h, p); box.append(sec);
+    }
+    const row = document.createElement('div'); row.className = 'word';
+    const b = document.createElement('b'); b.textContent = c.word;
+    if (c.note) { const s = document.createElement('small'); s.textContent = c.note; b.append(s); }
+    const chip = document.createElement('button');
+    const has = takes.has(c.key);
+    chip.className = 'chip' + (has ? ' done' : '') + (i === cur ? ' cur' : '');
+    chip.textContent = has ? '✓ neu' : 'aufnehmen';
+    chip.setAttribute('aria-label', `${c.word}${has ? ', aufgenommen, neu aufnehmen' : ', aufnehmen'}`);
+    chip.onclick = () => { if (!recorder) go(i); };
+    row.append(b, chip); sec.append(row);
+  });
+}
+
+function renderSend() {
+  const n = $('name').value.trim(), done = calls.filter(c => takes.has(c.key)).length;
+  $('name').classList.toggle('todo', !n);
+  const missing = [!n && 'dein Name', !$('ok').checked && 'dein Einverständnis', !done && 'mindestens eine Aufnahme'].filter(Boolean);
+  const open = calls.length - done;
+  $('sendHint').textContent = missing.length ? 'Noch offen: ' + missing.join(', ') + '.'
+    : open ? `Bereit, aber ${open} Aufnahmen fehlen noch. Du kannst trotzdem schon schicken.` : 'Alles aufgenommen, danke!';
+  $('save').disabled = $('share').disabled = missing.length > 0;
+}
+function render() { renderCurrent(); renderWords(); renderSend(); }
+function go(i) { cur = i; say(''); render(); }
+function say(text, bad) { $('status').textContent = text; $('status').classList.toggle('bad', !!bad); }
+
+async function openMic() {
+  if (stream) return;
+  stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  analyser = ctx.createAnalyser();
+  ctx.createMediaStreamSource(stream).connect(analyser);
+  const buf = new Float32Array(analyser.fftSize);
+  (function tick() {
+    analyser.getFloatTimeDomainData(buf);
+    let m = 0; for (const v of buf) m = Math.max(m, Math.abs(v));
+    $('bar').style.width = Math.min(100, m * 100) + '%';
+    $('bar').classList.toggle('hot', m > 0.95);
+    requestAnimationFrame(tick);
+  })();
+}
+
+async function toggle() {
+  if (recorder) { recorder.stop(); return; }
+  try { await openMic(); await ctx.resume(); }
+  catch (e) {
+    say('Kein Zugriff aufs Mikrofon. Erlaube es in der Adressleiste. Falls du den Link in WhatsApp oder Discord geöffnet hast, öffne ihn stattdessen in Chrome oder Safari.', true);
+    return;
+  }
+  const chunks = [], call = calls[cur];
+  recorder = new MediaRecorder(stream);
+  recorder.ondataavailable = e => chunks.push(e.data);
+  recorder.onstop = () => { clearTimeout(stopTimer); recorder = null; finish(call, chunks); };
+  recorder.start();
+  stopTimer = setTimeout(() => recorder && recorder.stop(), MAX_SECONDS * 1000);
+  say('Aufnahme läuft: jetzt rufen, dann Stopp drücken.');
+  renderCurrent();
+}
+
+async function finish(call, chunks) {
+  try {
+    const audio = await ctx.decodeAudioData(await new Blob(chunks).arrayBuffer());
+    const s = audio.getChannelData(0);
+    let peak = 0; for (const v of s) peak = Math.max(peak, Math.abs(v));
+    if (audio.duration < MIN_SECONDS || peak < MIN_PEAK) {
+      say(audio.duration < MIN_SECONDS ? 'Das war zu kurz, bitte noch einmal.' : 'Da war kaum etwas zu hören. Geh näher ans Mikrofon und versuch es noch einmal.', true);
+      render(); return;
+    }
+    const data = wav(audio);
+    takes.set(call.key, data);
+    let saved = true;
+    try { await store(st => st.put(data, call.key)); } catch { saved = false; }
+    if (peak > 0.99) say('Das war übersteuert. Geh etwas weiter weg und nimm es am besten neu auf.', true);
+    else {
+      say(saved ? `„${call.word}“ gespeichert.` : 'Aufgenommen, aber dein Browser speichert nicht dauerhaft. Bitte die Seite nicht neu laden, bevor du das ZIP geladen hast.', !saved);
+      if (calls[cur] === call && cur < calls.length - 1) cur = takes.has(calls[cur + 1].key) ? firstOpen() : cur + 1;
+    }
+  } catch { say('Die Aufnahme ließ sich nicht verarbeiten, bitte noch einmal.', true); }
+  render();
+}
+
+// 16 Bit Mono, kanonisches Format wie im Vermieter-Recorder
+function wav(a) {
+  const n = a.length, d = new DataView(new ArrayBuffer(44 + n * 2)), s = a.getChannelData(0);
+  const str = (o, t) => { for (let i = 0; i < t.length; i++) d.setUint8(o + i, t.charCodeAt(i)); };
+  str(0, 'RIFF'); d.setUint32(4, 36 + n * 2, true); str(8, 'WAVEfmt '); d.setUint32(16, 16, true); d.setUint16(20, 1, true); d.setUint16(22, 1, true);
+  d.setUint32(24, a.sampleRate, true); d.setUint32(28, a.sampleRate * 2, true); d.setUint16(32, 2, true); d.setUint16(34, 16, true); str(36, 'data'); d.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) d.setInt16(44 + i * 2, Math.max(-1, Math.min(1, s[i])) * 32767, true);
+  return d.buffer;
+}
+
+const CRC = Array.from({ length: 256 }, (_, n) => { for (let k = 0; k < 8; k++) n = n & 1 ? 0xedb88320 ^ (n >>> 1) : n >>> 1; return n >>> 0; });
+function crc32(u8) { let c = ~0; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return ~c >>> 0; }
+
+// ZIP ohne Kompression: WAV packt sich kaum, und so braucht es keine Bibliothek
+function zip(files) {
+  const enc = new TextEncoder(), parts = [], central = [];
+  let offset = 0;
+  for (const { name, bytes } of files) {
+    const nm = enc.encode(name), crc = crc32(bytes);
+    const common = v => { v.setUint16(0, 20, true); v.setUint16(2, 0x0800, true); v.setUint16(4, 0, true); v.setUint16(6, 0, true); v.setUint16(8, 0x21, true);
+      v.setUint32(10, crc, true); v.setUint32(14, bytes.length, true); v.setUint32(18, bytes.length, true); v.setUint16(22, nm.length, true); v.setUint16(24, 0, true); };
+    const lh = new DataView(new ArrayBuffer(30)); lh.setUint32(0, 0x04034b50, true); common(new DataView(lh.buffer, 4));
+    const ch = new DataView(new ArrayBuffer(46)); ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); common(new DataView(ch.buffer, 6)); ch.setUint32(42, offset, true);
+    parts.push(lh.buffer, nm, bytes); central.push(ch.buffer, nm);
+    offset += 30 + nm.length + bytes.length;
+  }
+  const size = central.reduce((n, p) => n + p.byteLength, 0);
+  const end = new DataView(new ArrayBuffer(22)); end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true); end.setUint32(12, size, true); end.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, end.buffer], { type: 'application/zip' });
+}
+
+function buildZip() {
+  const name = $('name').value.trim();
+  const list = calls.filter(c => takes.has(c.key));
+  const info = `Name: ${name}\nRolle: Möbelhaus-Verkäufer\nDatum: ${new Date().toISOString().slice(0, 10)}\nAufnahmen: ${list.length} von ${calls.length}\n` +
+    `Einverständnis: Ich bin einverstanden, dass meine Aufnahme in ShishaBarSim verwendet wird, auch in der Version, die auf Steam verkauft wird. Dafür bekomme ich kein Geld.\n`;
+  const blob = zip([{ name: 'info.txt', bytes: new TextEncoder().encode(info) }, ...list.map(c => ({ name: c.key + '.wav', bytes: new Uint8Array(takes.get(c.key)) }))]);
+  return new File([blob], `Stimme_Moebelhaus_EN_${name.replace(/[^\p{L}\p{N}]+/gu, '-')}.zip`, { type: 'application/zip' });
+}
+
+$('rec').onclick = toggle;
+$('back').onclick = () => go(cur - 1);
+$('next').onclick = () => go(cur + 1);
+$('play').onclick = () => {
+  if (player) player.pause();
+  player = new Audio(URL.createObjectURL(new Blob([takes.get(calls[cur].key)], { type: 'audio/wav' })));
+  player.play();
+};
+addEventListener('keydown', e => {
+  if (e.repeat || e.target.matches('input, select')) return;
+  if (e.key === 'r' || e.key === 'R') toggle();
+  if ((e.key === 'p' || e.key === 'P') && !$('play').disabled) $('play').click();
+});
+$('save').onclick = () => {
+  const file = buildZip(), a = document.createElement('a');
+  a.href = URL.createObjectURL(file); a.download = file.name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+};
+$('share').onclick = async () => {
+  try { await navigator.share({ files: [buildZip()], title: 'Stimme für ShishaBarSim' }); }
+  catch (e) { if (e.name !== 'AbortError') $('share').hidden = true; }
+};
+$('share').hidden = !(navigator.canShare && navigator.canShare({ files: [new File(['x'], 'x.zip', { type: 'application/zip' })] }));
+
+let resetArmed = false;
+$('reset').onclick = async () => {
+  if (!resetArmed) { resetArmed = true; $('resetHint').textContent = 'Löscht alle Aufnahmen auf diesem Gerät. Zum Bestätigen noch einmal tippen.'; return; }
+  resetArmed = false; $('resetHint').textContent = '';
+  takes.clear(); try { await store(st => st.clear()); } catch {}
+  $('ok').checked = false; cur = 0; say(''); render();
+};
+
+if (prefs.get('name')) $('name').value = prefs.get('name');
+$('name').addEventListener('input', () => { prefs.set('name', $('name').value); render(); });
+$('ok').addEventListener('input', renderSend);
+
+buildCalls();
+render();
+loadTakes().then(() => { cur = firstOpen(); render(); });
+</script>
+</body>
+</html>
