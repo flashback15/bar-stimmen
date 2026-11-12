@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Stimme für den Getränkeladen</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;800&display=swap">
+<style>
+/* Look: UI-Stil "Klar" aus dem Spiel. Oben Angaben, dann das Studio mit einem Wort, darunter alle Wörter, unten Abschicken. */
+:root {
+  --bg: #12171b; --glass: #1d252b; --line: #33414a; --fg: #eef3f4; --dim: #a5b3b9;
+  --teal: #6fe0c8; --on-teal: #08201b; --coal: #ffa552; --drink: #6cb6ff; --rec: #ff6b6b; --on-rec: #2b0808;
+  --font: "Overpass", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 var(--font);
+  padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 620px; margin: 0 auto; display: grid; gap: 24px; }
+h1 { font-size: 38px; line-height: 1.1; font-weight: 800; margin: 0 0 10px; text-wrap: balance; }
+h2 { font-size: 21px; font-weight: 800; margin: 0; }
+p { margin: 0; }
+.dim { color: var(--dim); }
+.panel { background: var(--glass); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 14px; }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+label.field { display: grid; gap: 5px; font-weight: 600; font-size: 14px; }
+select, input[type=text] { width: 100%; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 11px; min-height: 46px; }
+.todo { border-color: var(--teal); }
+:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+ul.tips { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+button { font: 800 16px var(--font); border-radius: 10px; padding: 12px 18px; min-height: 46px; cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--fg); }
+button.go { background: var(--teal); color: var(--on-teal); border-color: var(--teal); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.between { justify-content: space-between; }
+#studio { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; text-align: center; box-shadow: 0 10px 30px var(--bg); }
+@media (max-height: 760px) { #studio { position: static; } }
+#cWord { font-size: clamp(24px, 6vw, 40px); line-height: 1.05; font-weight: 800; overflow-wrap: anywhere; }
+#cMood { font-weight: 800; font-size: 18px; color: var(--teal); }
+#cMood.angry { color: var(--coal); }
+#rec { width: 100%; min-height: 64px; font-size: 20px; background: var(--rec); color: var(--on-rec); border-color: var(--rec); }
+#rec.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+#meter { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+#bar { height: 100%; width: 0; background: var(--teal); }
+#bar.hot { background: var(--rec); }
+#status { min-height: 24px; color: var(--dim); }
+#status.bad { color: var(--coal); }
+.nav > button { flex: 1 1 90px; padding-inline: 8px; }
+.group h3 { margin: 18px 0 6px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+.group h3 { color: var(--dim); } .group[data-g=core] h3 { color: var(--teal); }
+.group p.dim { font-size: 14px; margin-bottom: 4px; }
+.word { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--line); }
+.word b { font-size: 18px; min-width: 0; }
+.word small { display: block; color: var(--dim); font-weight: 400; font-size: 13px; }
+.chips { display: flex; gap: 6px; }
+.chip { min-height: 40px; padding: 6px 10px; font-size: 14px; font-weight: 600; }
+.chip.done { border-color: var(--teal); color: var(--teal); }
+.chip.cur { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.consent { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 11px; cursor: pointer; }
+.consent input { width: 20px; height: 20px; margin: 3px 0 0; accent-color: var(--teal); }
+#count { font-variant-numeric: tabular-nums; }
+.deal { background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; font-size: 14px; }
+.deal summary { font-weight: 800; cursor: pointer; }
+.deal ol { padding-left: 20px; margin: 10px 0 0; display: grid; gap: 8px; }
+#sig { width: 100%; height: 160px; background: #fff; border-radius: 9px; touch-action: none; cursor: crosshair; }
+#sig.todo { outline: 2px solid var(--teal); }
+@media (prefers-reduced-motion: no-preference) { #rec.on { animation: pulse 1.2s infinite; } @keyframes pulse { 50% { opacity: .75; } } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Sprich den Verkäufer im Getränkeladen</h1>
+    <p class="dim">In ShishaBarSim führen die Spieler eine eigene Shisha-Bar. Gegenüber auf der anderen Straßenseite liegt der Getränkeladen: Dort holen sie kistenweise Cola, Mate, Wasser, Tee und später auch Alkohol für ihre Gäste. Hinterm Tresen steht der Verkäufer, und der bekommt deine Stimme, auf Deutsch und auf Englisch. Du nimmst hier direkt im Browser auf, pro Sprache etwa eine Viertelstunde.</p>
+  </header>
+
+  <section class="panel" aria-labelledby="h-you">
+    <h2 id="h-you">Deine Angaben</h2>
+    <div class="fields">
+      <label class="field">Dein Name
+        <input type="text" id="name" autocomplete="off" maxlength="40" placeholder="Vorname reicht">
+      </label>
+      <label class="field">Sprache
+        <select id="lang">
+          <option value="de,en">Deutsch und Englisch</option>
+          <option value="de">Nur Deutsch</option>
+          <option value="en">Nur Englisch</option>
+        </select>
+      </label>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-how">
+    <h2 id="h-how">Die Rolle</h2>
+    <p>Gut gelaunt, bodenständig, ein bisschen Kumpel. Er schleppt den ganzen Tag Kisten, hat trotzdem immer einen Spruch auf Lager und freut sich über jeden Großeinkauf. Kein Verkäufer-Gesäusel, eher der nette Typ vom Getränkemarkt um die Ecke, der dich nach dem dritten Besuch beim Namen kennt. Die Rolle passt zu jeder Stimme, ob Frau oder Mann.</p>
+    <h2>So klingt es gut</h2>
+    <ul class="tips">
+      <li><strong>Sprich, lies nicht vor:</strong> so, als stünde jemand vor deinem Tresen. Kleine Abweichungen vom Text sind okay.</li>
+      <li><strong>Englisch:</strong> Die Stimmung ist dieselbe wie auf Deutsch, die Hinweise unter den Sätzen gelten auch dort. Ein leichter Akzent passt sogar gut zur Figur.</li>
+      <li><strong>Ruhiger Raum:</strong> Mikrofon etwa eine Handbreit vom Mund, leicht zur Seite, damit es nicht pustet.</li>
+      <li><strong>Ablauf:</strong> Aufnahme drücken, Satz sprechen, Stopp drücken. Danach springt die Seite zum nächsten Satz. Beim ersten Mal fragt dein Browser nach dem Mikrofon, bitte erlauben. Am Computer geht es auch mit der Taste R.</li>
+      <li><strong>Nicht zufrieden?</strong> Tippe unten in der Liste auf den Satz und nimm ihn neu auf. Die alte Aufnahme wird ersetzt.</li>
+      <li><strong>Wenig Zeit?</strong> Die Sätze im Kern-Set sind die wichtigsten, der Rest ist Bonus.</li>
+    </ul>
+    <p class="dim">Deine Aufnahmen bleiben auf deinem Gerät, bis du sie selbst verschickst. Du kannst auch zwischendurch aufhören und später im selben Browser weitermachen.</p>
+  </section>
+
+  <section class="panel" id="studio" aria-label="Aufnahme">
+    <div class="row between"><span class="dim" id="count"></span><span id="cMood"></span></div>
+    <div id="cWord" aria-live="polite"></div>
+    <p class="dim" id="cHint"></p>
+    <div id="meter"><div id="bar"></div></div>
+    <button id="rec">Aufnahme</button>
+    <div class="row nav">
+      <button id="back">Zurück</button>
+      <button id="play">Anhören</button>
+      <button id="next">Weiter</button>
+    </div>
+    <p id="status" role="status"></p>
+  </section>
+
+  <section aria-labelledby="h-words">
+    <h2 id="h-words">Alle Sätze</h2>
+    <div id="words"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-send">
+    <h2 id="h-send">Fertig? Erst kurz unterschreiben</h2>
+    <p class="dim">Damit Marv deine Stimme im Spiel verwenden darf, braucht er deine Erlaubnis. Bitte einmal durchlesen, ausfüllen und unterschreiben. Die Vereinbarung und deine Unterschrift kommen automatisch mit in die ZIP-Datei.</p>
+    <details class="deal" open><summary>Vereinbarung über die Nutzung der Sprachaufnahmen</summary><div id="dealText"></div></details>
+    <div class="fields">
+      <label class="field">Vor- und Nachname
+        <input type="text" id="fullname" autocomplete="name" maxlength="80">
+      </label>
+      <label class="field">Ort
+        <input type="text" id="place" autocomplete="address-level2" maxlength="60">
+      </label>
+      <label class="field">Name in den Credits
+        <select id="credit">
+          <option value="">Bitte wählen</option>
+          <option value="Mit meinem vollen Namen">Mit meinem vollen Namen</option>
+          <option value="Mit meinem Vornamen / Spitznamen">Mit Vornamen / Spitznamen</option>
+          <option value="Gar nicht">Gar nicht nennen</option>
+        </select>
+      </label>
+      <label class="field">Spitzname (optional)
+        <input type="text" id="nick" autocomplete="off" maxlength="40">
+      </label>
+    </div>
+    <label class="consent"><input type="checkbox" id="adult">
+      <span>Ich bin mindestens 18 Jahre alt.</span></label>
+    <label class="consent"><input type="checkbox" id="ok">
+      <span>Ich habe die Vereinbarung gelesen und bin einverstanden.</span></label>
+    <div class="field" style="font-weight:600;font-size:14px">Unterschrift (mit Finger oder Maus)
+      <canvas id="sig" width="600" height="160" aria-label="Unterschriftsfeld"></canvas>
+      <div class="row"><button id="sigClear" type="button">Unterschrift löschen</button></div>
+    </div>
+    <p class="dim" id="sendHint"></p>
+    <div class="row">
+      <button class="go" id="save" disabled>ZIP herunterladen</button>
+      <button id="share" hidden disabled>Direkt teilen</button>
+    </div>
+    <p class="dim">Schick die ZIP-Datei per WhatsApp oder Discord an Marv. Sie landet meist im Download-Ordner.</p>
+    <div class="row"><button id="reset">Von vorn anfangen</button><span class="dim" id="resetHint"></span></div>
+  </section>
+</main>
+
+<script>
+// Reihenfolge und ids bestimmen die Dateinamen (<id>_<de|en>.wav): ids nie ändern, neue Sätze hinten anhängen.
+// Je Abschnitt: Auslöser im Spiel, Stimmung; je Satz: id, Deutsch, Englisch, Hinweis zur Betonung.
+// Auslöser wie beim Möbelhaus (Shops/ShopVoice.cs: Reinkommen, Kauf, Pleite, Gehen, Ladenschluss, Warten, Rennen), Laden = Terminal.Store.Drinks
+// (Getränke-Kisten: Softdrinks, Mate, Wasser, Tee, mit Lizenz Alkohol; Getränke gehören in den Kühlschrank).
+const GROUPS = [
+  { g: 'core', title: 'Spieler kommt rein', mood: 'Gut gelaunt, packt nebenbei Kisten ins Regal.', words: [
+    ['gl_gruss_01', 'Moin moin! Kalt, flüssig, gibt\'s alles hier.', 'Hey there! Cold, wet, we\'ve got it all.', 'fröhlich, leicht außer Atem vom Kistenschleppen'],
+    ['gl_gruss_02', 'Hallo! Durst mitgebracht?', 'Hi! Brought your thirst along?'],
+    ['gl_gruss_03', 'Ah, da ist ja mein Lieblingskunde.', 'Ah, there\'s my favorite customer.', 'sagt er zu jedem'] ] },
+  { g: 'core', title: 'Kauf abgeschlossen', mood: 'Zufrieden, praktisch veranlagt.', words: [
+    ['gl_kauf_01', 'Zack, erledigt. Prost schon mal!', 'Boom, done. Cheers in advance!'],
+    ['gl_kauf_02', 'Kisten stehen draußen auf der Palette.', 'Crates are out on the pallet.'],
+    ['gl_kauf_03', 'Ab in den Kühlschrank damit, warm trinkt das keiner.', 'Straight into the fridge, nobody drinks that warm.', 'gut gemeinter Rat'] ] },
+  { g: 'core', title: 'Kauf: Softdrinks und Mate', mood: 'Kennt seine Kundschaft.', words: [
+    ['gl_ware_cola_01', 'Cola geht immer. Ohne Cola keine Bar.', 'Cola always sells. No cola, no bar.'],
+    ['gl_ware_mate_01', 'Mate! Damit deine Gäste bis drei Uhr wach bleiben.', 'Mate! Keeps your guests awake till three a.m.', 'mit Augenzwinkern'] ] },
+  { g: 'core', title: 'Kauf: Wasser und Tee', mood: 'Ruhiger, fast fürsorglich.', words: [
+    ['gl_ware_wasser_01', 'Wasser. Langweilig, aber jeder will\'s.', 'Water. Boring, but everybody wants it.'],
+    ['gl_ware_tee_01', 'Tee zur Shisha, ganz klassisch. Sehr gut.', 'Tea with your hookah, the classic way. Very nice.', 'anerkennend'] ] },
+  { g: 'core', title: 'Kauf: Alkohol', mood: 'Erst mit Lizenz. Ein bisschen verschwörerisch, ein bisschen stolz.', words: [
+    ['gl_ware_alk_01', 'Ah, mit Lizenz jetzt? Dann wird\'s abends lustig bei dir.', 'Ah, licensed now? Your evenings are about to get fun.'],
+    ['gl_ware_alk_02', 'Aber pass auf, dass keiner auf dem Tisch tanzt.', 'Just make sure nobody ends up dancing on the tables.'] ] },
+  { g: 'core', title: 'Großeinkauf', mood: 'Freut sich riesig.', words: [
+    ['gl_grosskauf_01', 'Wow. Da hab ich ja heute schon Feierabend verdient.', 'Wow. I\'ve basically earned my day off already.'],
+    ['gl_grosskauf_02', 'So viele Kisten? Schaffst du das überhaupt?', 'That many crates? Can you even carry all that?', 'ehrlich besorgt'] ] },
+  { g: 'core', title: 'Zu wenig Geld', mood: 'Entschuldigend, kumpelhaft.', words: [
+    ['gl_pleite_01', 'Ups, da fehlt noch was.', 'Oops, you\'re a bit short.'],
+    ['gl_pleite_02', 'Pfand zählt leider nicht als Bezahlung.', 'Sorry, empties don\'t count as payment.', 'trocken'] ] },
+  { g: 'core', title: 'Spieler geht', mood: 'Ruft hinterher.', words: [
+    ['gl_tschuess_01', 'Tschüss! Und schön kühl lagern!', 'Bye! And keep it cold!'],
+    ['gl_tschuess_02', 'Bis morgen, so wie ich dich kenne.', 'See you tomorrow, knowing you.'] ] },
+  { g: 'core', title: 'Geht ohne Einkauf', mood: 'Locker.', words: [
+    ['gl_nurgucken_01', 'Kein Durst heute? Kommt noch.', 'Not thirsty today? You will be.'],
+    ['gl_nurgucken_02', 'Alles klar, bis später.', 'Alright, see you later.'] ] },
+  { g: 'core', title: 'Kurz vor Ladenschluss', mood: 'Will heim.', words: [
+    ['gl_schluss_01', 'Gleich ist hier zu, also fix!', 'Closing soon, so make it quick!'],
+    ['gl_schluss_02', 'Letzte Kiste, dann geh ich heim.', 'Last crate, then I\'m going home.'] ] },
+  { g: 'extra', title: 'Erster Besuch', mood: 'Neugierig.', words: [
+    ['gl_erstbesuch_01', 'Neu hier? Die Bar gegenüber ist deine, oder? Dann brauchst du ganz schön viel zu trinken.', 'New around here? That bar across the street is yours, right? Then you\'re going to need a lot of drinks.'] ] },
+  { g: 'extra', title: 'Stammkunde', mood: 'Kumpel-Ton.', words: [
+    ['gl_stamm_01', 'Na, schon wieder leer getrunken?', 'Drunk it all dry again?'],
+    ['gl_stamm_02', 'Ich stell deine Kisten bald einfach vorne hin.', 'I might as well start keeping your crates up front.'] ] },
+  { g: 'extra', title: 'Bar läuft gut', mood: 'Beeindruckt.', words: [
+    ['gl_level_01', 'Bei dir ist abends ja richtig was los. Merk ich am Umsatz.', 'Your place is really busy at night. I can tell from my sales.'] ] },
+  { g: 'extra', title: 'Mehrere Spieler auf einmal', mood: 'Freut sich.', words: [
+    ['gl_gruppe_01', 'Super, gleich mit Trägern. Nehmt ruhig mehr mit.', 'Great, you brought carriers. Go ahead, take more.'] ] },
+  { g: 'extra', title: 'Morgens, der Erste', mood: 'Noch müde.', words: [
+    ['gl_morgen_01', 'So früh? Die Kühlschränke sind selbst noch nicht wach.', 'This early? Even the fridges aren\'t awake yet.'] ] },
+  { g: 'extra', title: 'Spieler steht lange rum', mood: 'Gesprächig.', words: [
+    ['gl_warten_01', 'Kann ich helfen, oder genießt du nur die Kühle?', 'Can I help, or are you just enjoying the cold air?'],
+    ['gl_warten_02', 'Die Auswahl ist groß, ich weiß. Nimm einfach Cola.', 'Big selection, I know. Just take the cola.'] ] },
+  { g: 'extra', title: 'Spieler rennt', mood: 'Erschrocken.', words: [
+    ['gl_rennen_01', 'Vorsicht! Wenn die Flaschen fallen, wischst du!', 'Careful! If those bottles fall, you\'re mopping!'] ] },
+  { g: 'extra', title: 'Seltene Sprüche', mood: 'Kommen nur ab und zu. Beiläufig.', words: [
+    ['gl_gag_01', 'Ich trink selber nur Leitungswasser. Berufskrankheit.', 'I only drink tap water myself. Occupational hazard.'],
+    ['gl_gag_02', 'Mein Rücken hasst diesen Job. Mein Kontostand nicht.', 'My back hates this job. My bank account doesn\'t.'],
+    ['gl_gag_03', 'Kühlschrank voll, Leben gut. So einfach ist das.', 'Full fridge, good life. Simple as that.'],
+    ['gl_gag_04', 'Der Shisha-Laden nebenan und ich, wir sind wie Kohle und Kopf. Gehören zusammen.', 'The hookah shop next door and me, we\'re like coal and bowl. Meant to be.'] ] },
+];
+const MAX_SECONDS = 12, MIN_PEAK = 0.03, MIN_SECONDS = 0.25;
+const $ = id => document.getElementById(id);
+const prefs = { get(k) { try { return localStorage.getItem(k) || ''; } catch { return ''; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} }, };
+
+let takes = new Map(); // key -> ArrayBuffer (WAV)
+let calls = [], cur = 0;
+let stream, ctx, analyser, recorder, stopTimer, player;
+
+// Aufnahmen überleben ein versehentliches Neuladen
+const idb = () => new Promise((ok, no) => {
+  const r = indexedDB.open('bar-stimmen-getraenkeladen', 1); // eigene DB: gleiche Herkunft wie die Gäste-Seite
+  r.onupgradeneeded = () => r.result.createObjectStore('takes');
+  r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+});
+async function store(fn, mode = 'readwrite') {
+  const db = await idb();
+  return new Promise((ok, no) => {
+    const tx = db.transaction('takes', mode), req = fn(tx.objectStore('takes'));
+    tx.oncomplete = () => ok(req.result); tx.onerror = () => no(tx.error);
+  });
+}
+async function loadTakes() {
+  try {
+    const db = await idb(), s = db.transaction('takes').objectStore('takes');
+    await new Promise((ok, no) => {
+      const c = s.openCursor();
+      c.onsuccess = () => { if (!c.result) return ok(); takes.set(c.result.key, c.result.value); c.result.continue(); };
+      c.onerror = () => no(c.error);
+    });
+  } catch {} // ponytail: ohne IndexedDB (privates Fenster) leben die Aufnahmen nur bis zum Neuladen
+}
+
+function buildCalls() {
+  calls = [];
+  const langs = $('lang').value.split(',');
+  for (const code of langs) for (const gr of GROUPS) for (const w of gr.words)
+    calls.push({ key: `${w[0]}_${code}`, word: w[code === 'de' ? 1 : 2], note: w[3] || '', g: gr.g, mood: gr.mood,
+      title: gr.title + (langs.length > 1 ? (code === 'de' ? ' · Deutsch' : ' · Englisch') : '') });
+  cur = Math.min(cur, calls.length - 1);
+}
+const firstOpen = () => { const i = calls.findIndex(c => !takes.has(c.key)); return i < 0 ? calls.length - 1 : i; };
+
+function renderCurrent() {
+  const c = calls[cur];
+  $('cWord').textContent = c.key.endsWith('_en') ? '“' + c.word + '”' : '„' + c.word + '“';
+  $('cMood').textContent = c.title;
+  $('cMood').classList.toggle('angry', c.g === 'extra');
+  $('cHint').textContent = [c.mood, c.note].filter(Boolean).join(' · ');
+  const done = calls.filter(x => takes.has(x.key)).length;
+  $('count').textContent = `${done} von ${calls.length} aufgenommen`;
+  const recording = !!recorder;
+  $('rec').textContent = recording ? 'Stopp' : takes.has(c.key) ? 'Neu aufnehmen' : 'Aufnahme';
+  $('rec').classList.toggle('on', recording);
+  $('back').disabled = recording || cur === 0;
+  $('next').disabled = recording || cur === calls.length - 1;
+  $('play').disabled = recording || !takes.has(c.key);
+}
+
+function renderWords() {
+  const box = $('words');
+  box.replaceChildren();
+  let sec, lastGroup;
+  calls.forEach((c, i) => {
+    if (c.title !== lastGroup) {
+      lastGroup = c.title; sec = document.createElement('div'); sec.className = 'group'; sec.dataset.g = c.g;
+      const h = document.createElement('h3'); h.textContent = c.title + (c.g === 'core' ? ' · Kern-Set' : '');
+      const p = document.createElement('p'); p.className = 'dim'; p.textContent = c.mood;
+      sec.append(h, p); box.append(sec);
+    }
+    const row = document.createElement('div'); row.className = 'word';
+    const b = document.createElement('b'); b.textContent = c.word;
+    if (c.note) { const s = document.createElement('small'); s.textContent = c.note; b.append(s); }
+    const chip = document.createElement('button');
+    const has = takes.has(c.key);
+    chip.className = 'chip' + (has ? ' done' : '') + (i === cur ? ' cur' : '');
+    chip.textContent = has ? '✓ neu' : 'aufnehmen';
+    chip.setAttribute('aria-label', `${c.word}${has ? ', aufgenommen, neu aufnehmen' : ', aufnehmen'}`);
+    chip.onclick = () => { if (!recorder) go(i); };
+    row.append(b, chip); sec.append(row);
+  });
+}
+
+function renderSend() {
+  const n = $('name').value.trim(), done = calls.filter(c => takes.has(c.key)).length;
+  $('name').classList.toggle('todo', !n);
+  $('fullname').classList.toggle('todo', !$('fullname').value.trim());
+  $('place').classList.toggle('todo', !$('place').value.trim());
+  $('credit').classList.toggle('todo', !$('credit').value);
+  $('sig').classList.toggle('todo', !signed);
+  const missing = [!n && 'dein Name oben', !$('fullname').value.trim() && 'Vor- und Nachname', !$('place').value.trim() && 'Ort',
+    !$('credit').value && 'Wunsch für die Credits', !$('adult').checked && 'Bestätigung, dass du volljährig bist',
+    !$('ok').checked && 'dein Einverständnis', !signed && 'deine Unterschrift', !done && 'mindestens eine Aufnahme'].filter(Boolean);
+  const open = calls.length - done;
+  $('sendHint').textContent = missing.length ? 'Noch offen: ' + missing.join(', ') + '.'
+    : open ? `Bereit, aber ${open} Aufnahmen fehlen noch. Du kannst trotzdem schon schicken.` : 'Alles aufgenommen, danke!';
+  $('save').disabled = $('share').disabled = missing.length > 0;
+}
+function render() { renderCurrent(); renderWords(); renderSend(); }
+function go(i) { cur = i; say(''); render(); }
+function say(text, bad) { $('status').textContent = text; $('status').classList.toggle('bad', !!bad); }
+
+async function openMic() {
+  if (stream) return;
+  stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  analyser = ctx.createAnalyser();
+  ctx.createMediaStreamSource(stream).connect(analyser);
+  const buf = new Float32Array(analyser.fftSize);
+  (function tick() {
+    analyser.getFloatTimeDomainData(buf);
+    let m = 0; for (const v of buf) m = Math.max(m, Math.abs(v));
+    $('bar').style.width = Math.min(100, m * 100) + '%';
+    $('bar').classList.toggle('hot', m > 0.95);
+    requestAnimationFrame(tick);
+  })();
+}
+
+async function toggle() {
+  if (recorder) { recorder.stop(); return; }
+  try { await openMic(); await ctx.resume(); }
+  catch (e) {
+    say('Kein Zugriff aufs Mikrofon. Erlaube es in der Adressleiste. Falls du den Link in WhatsApp oder Discord geöffnet hast, öffne ihn stattdessen in Chrome oder Safari.', true);
+    return;
+  }
+  const chunks = [], call = calls[cur];
+  recorder = new MediaRecorder(stream);
+  recorder.ondataavailable = e => chunks.push(e.data);
+  recorder.onstop = () => { clearTimeout(stopTimer); recorder = null; finish(call, chunks); };
+  recorder.start();
+  stopTimer = setTimeout(() => recorder && recorder.stop(), MAX_SECONDS * 1000);
+  say('Aufnahme läuft: jetzt sprechen, dann Stopp drücken.');
+  renderCurrent();
+}
+
+async function finish(call, chunks) {
+  try {
+    const audio = await ctx.decodeAudioData(await new Blob(chunks).arrayBuffer());
+    const s = audio.getChannelData(0);
+    let peak = 0; for (const v of s) peak = Math.max(peak, Math.abs(v));
+    if (audio.duration < MIN_SECONDS || peak < MIN_PEAK) {
+      say(audio.duration < MIN_SECONDS ? 'Das war zu kurz, bitte noch einmal.' : 'Da war kaum etwas zu hören. Geh näher ans Mikrofon und versuch es noch einmal.', true);
+      render(); return;
+    }
+    const data = wav(audio);
+    takes.set(call.key, data);
+    let saved = true;
+    try { await store(st => st.put(data, call.key)); } catch { saved = false; }
+    if (peak > 0.99) say('Das war übersteuert. Geh etwas weiter weg und nimm es am besten neu auf.', true);
+    else {
+      say(saved ? `„${call.word}“ gespeichert.` : 'Aufgenommen, aber dein Browser speichert nicht dauerhaft. Bitte die Seite nicht neu laden, bevor du das ZIP geladen hast.', !saved);
+      if (calls[cur] === call && cur < calls.length - 1) cur = takes.has(calls[cur + 1].key) ? firstOpen() : cur + 1;
+    }
+  } catch { say('Die Aufnahme ließ sich nicht verarbeiten, bitte noch einmal.', true); }
+  render();
+}
+
+// 16 Bit Mono, kanonisches Format wie im Vermieter-Recorder
+function wav(a) {
+  const n = a.length, d = new DataView(new ArrayBuffer(44 + n * 2)), s = a.getChannelData(0);
+  const str = (o, t) => { for (let i = 0; i < t.length; i++) d.setUint8(o + i, t.charCodeAt(i)); };
+  str(0, 'RIFF'); d.setUint32(4, 36 + n * 2, true); str(8, 'WAVEfmt '); d.setUint32(16, 16, true); d.setUint16(20, 1, true); d.setUint16(22, 1, true);
+  d.setUint32(24, a.sampleRate, true); d.setUint32(28, a.sampleRate * 2, true); d.setUint16(32, 2, true); d.setUint16(34, 16, true); str(36, 'data'); d.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) d.setInt16(44 + i * 2, Math.max(-1, Math.min(1, s[i])) * 32767, true);
+  return d.buffer;
+}
+
+const CRC = Array.from({ length: 256 }, (_, n) => { for (let k = 0; k < 8; k++) n = n & 1 ? 0xedb88320 ^ (n >>> 1) : n >>> 1; return n >>> 0; });
+function crc32(u8) { let c = ~0; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return ~c >>> 0; }
+
+// ZIP ohne Kompression: WAV packt sich kaum, und so braucht es keine Bibliothek
+function zip(files) {
+  const enc = new TextEncoder(), parts = [], central = [];
+  let offset = 0;
+  for (const { name, bytes } of files) {
+    const nm = enc.encode(name), crc = crc32(bytes);
+    const common = v => { v.setUint16(0, 20, true); v.setUint16(2, 0x0800, true); v.setUint16(4, 0, true); v.setUint16(6, 0, true); v.setUint16(8, 0x21, true);
+      v.setUint32(10, crc, true); v.setUint32(14, bytes.length, true); v.setUint32(18, bytes.length, true); v.setUint16(22, nm.length, true); v.setUint16(24, 0, true); };
+    const lh = new DataView(new ArrayBuffer(30)); lh.setUint32(0, 0x04034b50, true); common(new DataView(lh.buffer, 4));
+    const ch = new DataView(new ArrayBuffer(46)); ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); common(new DataView(ch.buffer, 6)); ch.setUint32(42, offset, true);
+    parts.push(lh.buffer, nm, bytes); central.push(ch.buffer, nm);
+    offset += 30 + nm.length + bytes.length;
+  }
+  const size = central.reduce((n, p) => n + p.byteLength, 0);
+  const end = new DataView(new ArrayBuffer(22)); end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true); end.setUint32(12, size, true); end.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, end.buffer], { type: 'application/zip' });
+}
+
+function buildZip() {
+  const name = $('name').value.trim();
+  const list = calls.filter(c => takes.has(c.key));
+  const date = new Date().toLocaleDateString('de-DE'), credit = $('credit').value + ($('nick').value.trim() ? ` (${$('nick').value.trim()})` : '');
+  const info = `Name: ${name}\nRolle: Verkäufer/in im Getränkeladen\nDatum: ${new Date().toISOString().slice(0, 10)}\nAufnahmen: ${list.length} von ${calls.length}\n`;
+  const deal = `VEREINBARUNG ÜBER DIE NUTZUNG VON SPRACHAUFNAHMEN\n\n${dealPlain()}\n\n` +
+    `Sprecher/in: ${$('fullname').value.trim()}\nOrt, Datum: ${$('place').value.trim()}, ${date}\nNennung in den Credits: ${credit}\n` +
+    `Volljährig bestätigt: ja\nEinverstanden: ja (angeklickt und unterschrieben, siehe Unterschrift.png)\n` +
+    `Aufgenommene Dateien (${list.length}):\n${list.map(c => '  ' + c.key + '.wav').join('\n')}\n`;
+  const png = atob($('sig').toDataURL('image/png').split(',')[1]), sigBytes = Uint8Array.from(png, ch => ch.charCodeAt(0));
+  const blob = zip([{ name: 'info.txt', bytes: new TextEncoder().encode(info) }, { name: 'Vereinbarung.txt', bytes: new TextEncoder().encode(deal) },
+    { name: 'Unterschrift.png', bytes: sigBytes }, ...list.map(c => ({ name: c.key + '.wav', bytes: new Uint8Array(takes.get(c.key)) }))]);
+  return new File([blob], `Stimme_Getraenkeladen_${name.replace(/[^\p{L}\p{N}]+/gu, '-')}.zip`, { type: 'application/zip' });
+}
+
+$('rec').onclick = toggle;
+$('back').onclick = () => go(cur - 1);
+$('next').onclick = () => go(cur + 1);
+$('play').onclick = () => {
+  if (player) player.pause();
+  player = new Audio(URL.createObjectURL(new Blob([takes.get(calls[cur].key)], { type: 'audio/wav' })));
+  player.play();
+};
+addEventListener('keydown', e => {
+  if (e.repeat || e.target.matches('input, select')) return;
+  if (e.key === 'r' || e.key === 'R') toggle();
+  if ((e.key === 'p' || e.key === 'P') && !$('play').disabled) $('play').click();
+});
+$('save').onclick = () => {
+  const file = buildZip(), a = document.createElement('a');
+  a.href = URL.createObjectURL(file); a.download = file.name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+};
+$('share').onclick = async () => {
+  try { await navigator.share({ files: [buildZip()], title: 'Stimme für ShishaBarSim' }); }
+  catch (e) { if (e.name !== 'AbortError') $('share').hidden = true; }
+};
+$('share').hidden = !(navigator.canShare && navigator.canShare({ files: [new File(['x'], 'x.zip', { type: 'application/zip' })] }));
+
+let resetArmed = false;
+$('reset').onclick = async () => {
+  if (!resetArmed) { resetArmed = true; $('resetHint').textContent = 'Löscht alle Aufnahmen auf diesem Gerät. Zum Bestätigen noch einmal tippen.'; return; }
+  resetArmed = false; $('resetHint').textContent = '';
+  takes.clear(); try { await store(st => st.clear()); } catch {}
+  $('ok').checked = $('adult').checked = false; $('sigClear').click(); cur = 0; say(''); render();
+};
+
+if (prefs.get('name')) $('name').value = prefs.get('name');
+$('name').addEventListener('input', () => { prefs.set('name', $('name').value); render(); });
+// Vereinbarung: eine Quelle für Anzeige und Vereinbarung.txt. ponytail: kein Anwalt drübergegangen, bei bezahlten Profis prüfen lassen.
+const DEAL = [
+  'Diese Vereinbarung gilt zwischen dir (Sprecher/in) und Marv, dem Entwickler des Computerspiels ShishaBarSim (Entwickler). Sie betrifft die Sprachaufnahmen, die du auf dieser Seite für die Rolle „Verkäufer/in im Getränkeladen“ aufnimmst und dem Entwickler schickst.',
+  'Du erlaubst dem Entwickler, die Aufnahmen im Spiel ShishaBarSim zu verwenden, in allen Versionen, Updates, Erweiterungen (DLCs) und Nachfolgern, auf allen Plattformen (z. B. Steam) und in allen Sprachen. Das gilt weltweit, zeitlich unbegrenzt und auch für den kommerziellen Verkauf des Spiels.',
+  'Du erlaubst außerdem, die Aufnahmen in Werbung für das Spiel zu verwenden, z. B. in Trailern, Videos, Streams, Screenshots mit Ton und Social-Media-Beiträgen.',
+  'Der Entwickler darf die Aufnahmen bearbeiten: schneiden, kürzen, lauter oder leiser machen, mit Effekten versehen (z. B. Hall, Funk-Klang) und die Tonhöhe leicht verändern, solange erkennbar deine Rolle gesprochen wird.',
+  'Der Entwickler darf diese Rechte an Dritte weitergeben, die das Spiel mit ihm veröffentlichen oder übernehmen (z. B. ein Publisher oder eine eigene Firma des Entwicklers). Das Recht ist nicht exklusiv: Du darfst deine Stimme natürlich weiter für alles andere nutzen.',
+  'Die Aufnahmen werden nicht dazu verwendet, eine KI-Stimme oder einen Stimmklon von dir zu erzeugen oder zu trainieren. Dafür bräuchte es eine eigene, ausdrückliche Zustimmung.',
+  'Du bekommst für die Aufnahmen und diese Rechte kein Geld. Du kannst wählen, ob und wie du in den Credits des Spiels genannt wirst. Der Entwickler hält sich daran, soweit das Spiel Credits hat.',
+  'Du versicherst, dass du die Aufnahmen selbst gesprochen hast und keine Rechte anderer verletzt (z. B. keine Musik im Hintergrund).',
+  'Datenschutz: Deine Stimme, dein Name und dein Ort werden nur für das Spiel, die Credits und als Nachweis dieser Vereinbarung gespeichert und nicht weitergegeben, außer im Rahmen von Punkt 5.',
+  'Für bereits veröffentlichte Versionen kann die Erlaubnis nicht zurückgenommen werden. Wenn du es dir anders überlegst, bevor deine Stimme in einer veröffentlichten Version ist, sag dem Entwickler Bescheid. Dann werden die Aufnahmen nicht verwendet und gelöscht.',
+  'Es gilt deutsches Recht. Sollte ein Punkt unwirksam sein, bleiben die übrigen Punkte gültig.',
+];
+const dealPlain = () => DEAL.map((t, i) => `${i + 1}. ${t}`).join('\n\n');
+{ const ol = document.createElement('ol'); for (const t of DEAL) { const li = document.createElement('li'); li.textContent = t; ol.append(li); } $('dealText').append(ol); }
+
+// Unterschrift: einfache Linie mit Zeiger-Events
+let signed = false;
+{ const cv = $('sig'), g = cv.getContext('2d'); let down = false;
+  const pos = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height]; };
+  const clear = () => { g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.lineWidth = 3; g.lineCap = g.lineJoin = 'round'; g.strokeStyle = '#111'; signed = false; renderSend(); };
+  cv.onpointerdown = e => { down = true; cv.setPointerCapture(e.pointerId); g.beginPath(); g.moveTo(...pos(e)); };
+  cv.onpointermove = e => { if (!down) return; g.lineTo(...pos(e)); g.stroke(); if (!signed) { signed = true; renderSend(); } };
+  cv.onpointerup = cv.onpointercancel = () => { down = false; };
+  $('sigClear').onclick = clear;
+  clear(); }
+for (const id of ['fullname', 'place', 'nick']) { if (prefs.get(id)) $(id).value = prefs.get(id); $(id).addEventListener('input', () => { prefs.set(id, $(id).value); renderSend(); }); }
+for (const id of ['credit', 'adult']) $(id).addEventListener('input', renderSend);
+$('ok').addEventListener('input', renderSend);
+if (prefs.get('lang')) $('lang').value = prefs.get('lang');
+$('lang').addEventListener('input', () => { prefs.set('lang', $('lang').value); buildCalls(); cur = firstOpen(); render(); });
+
+buildCalls();
+render();
+loadTakes().then(() => { cur = firstOpen(); render(); });
+</script>
+</body>
+</html>
