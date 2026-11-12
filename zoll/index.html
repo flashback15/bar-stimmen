@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Stimme für den Zoll</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;800&display=swap">
+<style>
+/* Look: UI-Stil "Klar" aus dem Spiel. Oben Angaben, dann das Studio mit einem Wort, darunter alle Wörter, unten Abschicken. */
+:root {
+  --bg: #12171b; --glass: #1d252b; --line: #33414a; --fg: #eef3f4; --dim: #a5b3b9;
+  --teal: #6fe0c8; --on-teal: #08201b; --coal: #ffa552; --drink: #6cb6ff; --rec: #ff6b6b; --on-rec: #2b0808;
+  --font: "Overpass", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 var(--font);
+  padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 620px; margin: 0 auto; display: grid; gap: 24px; }
+h1 { font-size: 38px; line-height: 1.1; font-weight: 800; margin: 0 0 10px; text-wrap: balance; }
+h2 { font-size: 21px; font-weight: 800; margin: 0; }
+p { margin: 0; }
+.dim { color: var(--dim); }
+.panel { background: var(--glass); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 14px; }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+label.field { display: grid; gap: 5px; font-weight: 600; font-size: 14px; }
+select, input[type=text] { width: 100%; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 11px; min-height: 46px; }
+.todo { border-color: var(--teal); }
+:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+ul.tips { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+button { font: 800 16px var(--font); border-radius: 10px; padding: 12px 18px; min-height: 46px; cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--fg); }
+button.go { background: var(--teal); color: var(--on-teal); border-color: var(--teal); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.between { justify-content: space-between; }
+#studio { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; text-align: center; box-shadow: 0 10px 30px var(--bg); }
+@media (max-height: 760px) { #studio { position: static; } }
+#cWord { font-size: clamp(24px, 6vw, 40px); line-height: 1.05; font-weight: 800; overflow-wrap: anywhere; }
+#cMood { font-weight: 800; font-size: 18px; color: var(--teal); }
+#cMood.angry { color: var(--coal); }
+#rec { width: 100%; min-height: 64px; font-size: 20px; background: var(--rec); color: var(--on-rec); border-color: var(--rec); }
+#rec.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+#meter { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+#bar { height: 100%; width: 0; background: var(--teal); }
+#bar.hot { background: var(--rec); }
+#status { min-height: 24px; color: var(--dim); }
+#status.bad { color: var(--coal); }
+.nav > button { flex: 1 1 90px; padding-inline: 8px; }
+.group h3 { margin: 18px 0 6px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+.group h3 { color: var(--dim); } .group[data-g=core] h3 { color: var(--teal); }
+.group p.dim { font-size: 14px; margin-bottom: 4px; }
+.word { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--line); }
+.word b { font-size: 18px; min-width: 0; }
+.word small { display: block; color: var(--dim); font-weight: 400; font-size: 13px; }
+.chips { display: flex; gap: 6px; }
+.chip { min-height: 40px; padding: 6px 10px; font-size: 14px; font-weight: 600; }
+.chip.done { border-color: var(--teal); color: var(--teal); }
+.chip.cur { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.consent { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 11px; cursor: pointer; }
+.consent input { width: 20px; height: 20px; margin: 3px 0 0; accent-color: var(--teal); }
+#count { font-variant-numeric: tabular-nums; }
+.deal { background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; font-size: 14px; }
+.deal summary { font-weight: 800; cursor: pointer; }
+.deal ol { padding-left: 20px; margin: 10px 0 0; display: grid; gap: 8px; }
+#sig { width: 100%; height: 160px; background: #fff; border-radius: 9px; touch-action: none; cursor: crosshair; }
+#sig.todo { outline: 2px solid var(--teal); }
+@media (prefers-reduced-motion: no-preference) { #rec.on { animation: pulse 1.2s infinite; } @keyframes pulse { 50% { opacity: .75; } } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Sprich den Zoll</h1>
+    <p class="dim">In ShishaBarSim können die Spieler bei Mr. John im U-Bahn-Tunnel unverzollten Tabak kaufen. Billig, aber verboten. Irgendwann steht dann der Zoll in der Bar: Beamte in grüner Uniform, die eine Razzia machen, alles durchsuchen und Schwarzware einkassieren. Die Spieler haben 45 Sekunden Vorwarnung, um die Kisten rauszuschaffen. Der Zoll bekommt deine Stimme, auf Deutsch und auf Englisch. Du nimmst hier direkt im Browser auf, pro Sprache etwa eine Viertelstunde.</p>
+  </header>
+
+  <section class="panel" aria-labelledby="h-you">
+    <h2 id="h-you">Deine Angaben</h2>
+    <div class="fields">
+      <label class="field">Dein Name
+        <input type="text" id="name" autocomplete="off" maxlength="40" placeholder="Vorname reicht">
+      </label>
+      <label class="field">Sprache
+        <select id="lang">
+          <option value="de,en">Deutsch und Englisch</option>
+          <option value="de">Nur Deutsch</option>
+          <option value="en">Nur Englisch</option>
+        </select>
+      </label>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-how">
+    <h2 id="h-how">Die Rolle</h2>
+    <p>Ruhig, korrekt, ein bisschen zu höflich. Ein Beamter, der das seit zwanzig Jahren macht und sich von nichts mehr beeindrucken lässt. Er schreit nicht, er droht nicht, er muss gar nicht: Er weiß, dass er am längeren Hebel sitzt. Leichtes Beamtendeutsch, trockener Humor, und ab und zu merkt man, dass ihm das Ganze heimlich Spaß macht. Die Rolle passt zu jeder Stimme, ob Frau oder Mann.</p>
+    <h2>So klingt es gut</h2>
+    <ul class="tips">
+      <li><strong>Sprich, lies nicht vor:</strong> so, als stünde jemand mitten in der Bar, während du dich umsiehst. Kleine Abweichungen vom Text sind okay.</li>
+      <li><strong>Englisch:</strong> Die Stimmung ist dieselbe wie auf Deutsch, die Hinweise unter den Sätzen gelten auch dort. Ein leichter Akzent passt sogar gut zur Figur.</li>
+      <li><strong>Ruhiger Raum:</strong> Mikrofon etwa eine Handbreit vom Mund, leicht zur Seite, damit es nicht pustet.</li>
+      <li><strong>Ablauf:</strong> Aufnahme drücken, Satz sprechen, Stopp drücken. Danach springt die Seite zum nächsten Satz. Beim ersten Mal fragt dein Browser nach dem Mikrofon, bitte erlauben. Am Computer geht es auch mit der Taste R.</li>
+      <li><strong>Nicht zufrieden?</strong> Tippe unten in der Liste auf den Satz und nimm ihn neu auf. Die alte Aufnahme wird ersetzt.</li>
+      <li><strong>Wenig Zeit?</strong> Die Sätze im Kern-Set sind die wichtigsten, der Rest ist Bonus.</li>
+    </ul>
+    <p class="dim">Deine Aufnahmen bleiben auf deinem Gerät, bis du sie selbst verschickst. Du kannst auch zwischendurch aufhören und später im selben Browser weitermachen.</p>
+  </section>
+
+  <section class="panel" id="studio" aria-label="Aufnahme">
+    <div class="row between"><span class="dim" id="count"></span><span id="cMood"></span></div>
+    <div id="cWord" aria-live="polite"></div>
+    <p class="dim" id="cHint"></p>
+    <div id="meter"><div id="bar"></div></div>
+    <button id="rec">Aufnahme</button>
+    <div class="row nav">
+      <button id="back">Zurück</button>
+      <button id="play">Anhören</button>
+      <button id="next">Weiter</button>
+    </div>
+    <p id="status" role="status"></p>
+  </section>
+
+  <section aria-labelledby="h-words">
+    <h2 id="h-words">Alle Sätze</h2>
+    <div id="words"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-send">
+    <h2 id="h-send">Fertig? Erst kurz unterschreiben</h2>
+    <p class="dim">Damit Marv deine Stimme im Spiel verwenden darf, braucht er deine Erlaubnis. Bitte einmal durchlesen, ausfüllen und unterschreiben. Die Vereinbarung und deine Unterschrift kommen automatisch mit in die ZIP-Datei.</p>
+    <details class="deal" open><summary>Vereinbarung über die Nutzung der Sprachaufnahmen</summary><div id="dealText"></div></details>
+    <div class="fields">
+      <label class="field">Vor- und Nachname
+        <input type="text" id="fullname" autocomplete="name" maxlength="80">
+      </label>
+      <label class="field">Ort
+        <input type="text" id="place" autocomplete="address-level2" maxlength="60">
+      </label>
+      <label class="field">Name in den Credits
+        <select id="credit">
+          <option value="">Bitte wählen</option>
+          <option value="Mit meinem vollen Namen">Mit meinem vollen Namen</option>
+          <option value="Mit meinem Vornamen / Spitznamen">Mit Vornamen / Spitznamen</option>
+          <option value="Gar nicht">Gar nicht nennen</option>
+        </select>
+      </label>
+      <label class="field">Spitzname (optional)
+        <input type="text" id="nick" autocomplete="off" maxlength="40">
+      </label>
+    </div>
+    <label class="consent"><input type="checkbox" id="adult">
+      <span>Ich bin mindestens 18 Jahre alt.</span></label>
+    <label class="consent"><input type="checkbox" id="ok">
+      <span>Ich habe die Vereinbarung gelesen und bin einverstanden.</span></label>
+    <div class="field" style="font-weight:600;font-size:14px">Unterschrift (mit Finger oder Maus)
+      <canvas id="sig" width="600" height="160" aria-label="Unterschriftsfeld"></canvas>
+      <div class="row"><button id="sigClear" type="button">Unterschrift löschen</button></div>
+    </div>
+    <p class="dim" id="sendHint"></p>
+    <div class="row">
+      <button class="go" id="save" disabled>ZIP herunterladen</button>
+      <button id="share" hidden disabled>Direkt teilen</button>
+    </div>
+    <p class="dim">Schick die ZIP-Datei per WhatsApp oder Discord an Marv. Sie landet meist im Download-Ordner.</p>
+    <div class="row"><button id="reset">Von vorn anfangen</button><span class="dim" id="resetHint"></span></div>
+  </section>
+</main>
+
+<script>
+// Reihenfolge und ids bestimmen die Dateinamen (<id>_<de|en>.wav): ids nie ändern, neue Sätze hinten anhängen.
+// Je Abschnitt: Auslöser im Spiel, Stimmung; je Satz: id, Deutsch, Englisch, Hinweis zur Betonung.
+// Auslöser in Bar/BlackMarket.cs: SpawnCustoms (Ankunft), customsEnd-Phase (Suche), customsCaught (Kiste unterwegs), CustomsVerdict (sauber/Fund), GoTo(guestDoor) (Abgang).
+// Satz-Sprechblasen heute: „Zoll! Keiner rührt sich.“ = zo_ankunft_01, „Mal sehen, was hier so rumsteht …“ = zo_suche_01, „Sauber. Diesmal.“ = zo_sauber_01, Fund ohne Betrag = zo_fund_01.
+const GROUPS = [
+  { g: 'core', title: 'Razzia: Ankunft an der Tür', mood: 'Kommt rein, bleibt kurz stehen, alle sollen es hören. Bestimmt, aber nicht gebrüllt.', words: [
+    ['zo_ankunft_01', 'Zoll! Keiner rührt sich.', 'Customs! Nobody move.', 'laut und klar, wie eine Ansage'],
+    ['zo_ankunft_02', 'Guten Abend. Zollkontrolle. Bleiben Sie bitte, wo Sie sind.', 'Good evening. Customs inspection. Please stay where you are.', 'betont höflich'],
+    ['zo_ankunft_03', 'Hauptzollamt. Wir hatten einen Hinweis.', 'Customs office. We received a tip.', 'beiläufig, fast gelangweilt'],
+    ['zo_ankunft_04', 'Niemand verlässt den Raum. Danke.', 'Nobody leaves the room. Thank you.', 'das „Danke“ trocken hinterher'] ] },
+  { g: 'core', title: 'Durchsuchung', mood: 'Läuft langsam durch die Bar, schaut in Ecken und Regale. Murmelt eher vor sich hin.', words: [
+    ['zo_suche_01', 'Mal sehen, was hier so rumsteht …', 'Let\'s see what we\'ve got lying around here …', 'neugierig, gedehnt'],
+    ['zo_suche_02', 'Hm. Interessante Einrichtung.', 'Hm. Interesting décor.', 'skeptisch'],
+    ['zo_suche_03', 'Die Kisten da hinten, die schau ich mir mal genauer an.', 'Those crates back there, I\'ll take a closer look at those.'],
+    ['zo_suche_04', 'Nur keine Hektik. Ich hab Zeit.', 'No need to rush. I\'ve got time.', 'ruhig, leicht amüsiert'],
+    ['zo_suche_05', 'Wenn Sie was zu verzollen haben, wäre jetzt ein guter Moment.', 'If you\'ve got anything to declare, now would be a good time.'] ] },
+  { g: 'core', title: 'Kiste unterwegs entdeckt', mood: 'Jemand läuft mit einer Kiste an ihm vorbei. Er hat es natürlich gesehen.', words: [
+    ['zo_kiste_01', 'Moment. Was ist in der Kiste?', 'Hold on. What\'s in the crate?', 'scharf, sofort aufmerksam'],
+    ['zo_kiste_02', 'Stellen Sie das mal ab, bitte.', 'Put that down for me, please.'],
+    ['zo_kiste_03', '„Unverzollt“ steht da drauf. Na sowas.', '“Undeclared”, it says right there. Well, well.', 'liest den Stempel vor, gespielt überrascht'] ] },
+  { g: 'core', title: 'Nichts gefunden', mood: 'Ein bisschen enttäuscht. Er glaubt euch trotzdem nicht.', words: [
+    ['zo_sauber_01', 'Sauber. Diesmal.', 'Clean. This time.', 'Pause vor „Diesmal“'],
+    ['zo_sauber_02', 'Alles in Ordnung. Schönen Abend noch.', 'Everything\'s in order. Have a nice evening.', 'freundlich, aber kühl'],
+    ['zo_sauber_03', 'Nichts. Na gut. Dann war der Hinweis wohl falsch.', 'Nothing. Fine. Guess the tip was wrong.', 'glaubt es selbst nicht'],
+    ['zo_sauber_04', 'Ich hab Sie im Auge.', 'I\'ve got my eye on you.', 'leise, ohne Drohgebärde'] ] },
+  { g: 'core', title: 'Schwarzware gefunden', mood: 'Zufrieden. Jetzt wird es amtlich. Kein Triumph, nur Routine.', words: [
+    ['zo_fund_01', 'Unverzollter Tabak. Das wird teuer.', 'Undeclared tobacco. That\'s going to cost you.', 'nüchtern'],
+    ['zo_fund_02', 'Das beschlagnahme ich.', 'I\'m confiscating this.'],
+    ['zo_fund_03', 'Keine Steuermarke, keine Rechnung, keine Ausrede.', 'No tax stamp, no receipt, no excuse.', 'drei Teile, gleichmäßig'],
+    ['zo_fund_04', 'Die Strafe ist sofort fällig. Bar oder Karte?', 'The fine is due right now. Cash or card?', 'die Frage ganz ernst gemeint'],
+    ['zo_fund_05', 'Das ist kein Kavaliersdelikt, wissen Sie.', 'This isn\'t a minor offense, you know.'] ] },
+  { g: 'core', title: 'Geht wieder', mood: 'Schon auf dem Weg zur Tür, über die Schulter.', words: [
+    ['zo_weg_01', 'Wir kommen wieder.', 'We\'ll be back.', 'ruhig, als Tatsache'],
+    ['zo_weg_02', 'Einen schönen Abend noch. Und bleiben Sie ehrlich.', 'Have a nice evening. And stay honest.'],
+    ['zo_weg_03', 'Bis zum nächsten Hinweis.', 'Until the next tip.', 'trocken'] ] },
+  { g: 'extra', title: 'Viel gefunden', mood: 'Fast schon beeindruckt.', words: [
+    ['zo_viel_01', 'Da hat sich aber jemand richtig eingedeckt.', 'Well, someone really stocked up.', 'pfeift fast'],
+    ['zo_viel_02', 'So viel? Das schreib ich in den Jahresbericht.', 'That much? That\'s going in the annual report.'] ] },
+  { g: 'extra', title: 'Nur wenig gefunden', mood: 'Kleinlich, aus Prinzip.', words: [
+    ['zo_wenig_01', 'Nur ein paar Köpfe. Verboten ist verboten.', 'Just a few bowls. Illegal is illegal.'],
+    ['zo_wenig_02', 'Klein, aber unverzollt.', 'Small, but undeclared.'] ] },
+  { g: 'extra', title: 'Wiederholungstäter', mood: 'Zweite oder dritte Razzia in derselben Bar. Fast schon vertraut.', words: [
+    ['zo_wieder_01', 'Sie schon wieder.', 'You again.', 'Seufzer davor'],
+    ['zo_wieder_02', 'Langsam kennen wir uns, was?', 'We\'re getting to know each other, aren\'t we?'],
+    ['zo_wieder_03', 'Ich hab schon einen eigenen Ordner für Sie.', 'I\'ve got a whole folder just for you.'] ] },
+  { g: 'extra', title: 'Gäste beruhigen', mood: 'Läuft an Tischen vorbei. Freundlich zu den Gästen, die sind nicht gemeint.', words: [
+    ['zo_gast_01', 'Bleiben Sie ruhig sitzen, Sie sind nicht gemeint.', 'Stay seated, it\'s not about you.'],
+    ['zo_gast_02', 'Rauchen Sie ruhig weiter. Schmeckt\'s?', 'Go ahead, keep smoking. Tastes good?', 'die Frage mit Hintergedanken'] ] },
+  { g: 'extra', title: 'Spieler steht im Weg oder rennt', mood: 'Ungeduldig, aber immer noch höflich.', words: [
+    ['zo_weg_frei_01', 'Gehen Sie bitte zur Seite.', 'Step aside, please.'],
+    ['zo_rennen_01', 'Laufen Sie nicht weg. Ich hab Sie schon gesehen.', 'Don\'t run. I\'ve already seen you.'],
+    ['zo_rennen_02', 'Wohin denn so eilig?', 'Where are you off to in such a hurry?'] ] },
+  { g: 'extra', title: 'Ordnungsamt war gerade da', mood: 'Der Zoll hat draußen gewartet, bis die Kollegen fertig waren.', words: [
+    ['zo_amt_01', 'Die Kollegen vom Ordnungsamt sind durch? Gut. Jetzt bin ich dran.', 'The folks from the safety inspection are done? Good. My turn.'] ] },
+  { g: 'extra', title: 'Seltene Sprüche', mood: 'Kommen nur ab und zu. Beiläufig, fast mehr zu sich selbst.', words: [
+    ['zo_gag_01', 'Ich rauch selber nicht. Aber ich riech\'s sofort.', 'I don\'t smoke myself. But I can smell it a mile off.'],
+    ['zo_gag_02', 'Grün steht mir, finden Sie nicht?', 'Green suits me, don\'t you think?', 'zupft an der Uniform'],
+    ['zo_gag_03', 'Zwanzig Jahre im Dienst. Sie sind nicht der Erste mit einer Kiste hinterm Tresen.', 'Twenty years on the job. You\'re not the first with a crate behind the counter.'],
+    ['zo_gag_04', 'Grüßen Sie Mr. John von mir. Ach, Sie kennen keinen Mr. John? Natürlich nicht.', 'Say hi to Mr. John for me. Oh, you don\'t know a Mr. John? Of course not.', 'genüsslich, langsam'],
+    ['zo_gag_05', 'Schöner Laden eigentlich. Wäre schade drum.', 'Nice place, actually. Would be a shame.'] ] },
+];
+const MAX_SECONDS = 12, MIN_PEAK = 0.03, MIN_SECONDS = 0.25;
+const $ = id => document.getElementById(id);
+const prefs = { get(k) { try { return localStorage.getItem(k) || ''; } catch { return ''; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} }, };
+
+let takes = new Map(); // key -> ArrayBuffer (WAV)
+let calls = [], cur = 0;
+let stream, ctx, analyser, recorder, stopTimer, player;
+
+// Aufnahmen überleben ein versehentliches Neuladen
+const idb = () => new Promise((ok, no) => {
+  const r = indexedDB.open('bar-stimmen-zoll', 1); // eigene DB: gleiche Herkunft wie die Gäste-Seite
+  r.onupgradeneeded = () => r.result.createObjectStore('takes');
+  r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+});
+async function store(fn, mode = 'readwrite') {
+  const db = await idb();
+  return new Promise((ok, no) => {
+    const tx = db.transaction('takes', mode), req = fn(tx.objectStore('takes'));
+    tx.oncomplete = () => ok(req.result); tx.onerror = () => no(tx.error);
+  });
+}
+async function loadTakes() {
+  try {
+    const db = await idb(), s = db.transaction('takes').objectStore('takes');
+    await new Promise((ok, no) => {
+      const c = s.openCursor();
+      c.onsuccess = () => { if (!c.result) return ok(); takes.set(c.result.key, c.result.value); c.result.continue(); };
+      c.onerror = () => no(c.error);
+    });
+  } catch {} // ponytail: ohne IndexedDB (privates Fenster) leben die Aufnahmen nur bis zum Neuladen
+}
+
+function buildCalls() {
+  calls = [];
+  const langs = $('lang').value.split(',');
+  for (const code of langs) for (const gr of GROUPS) for (const w of gr.words)
+    calls.push({ key: `${w[0]}_${code}`, word: w[code === 'de' ? 1 : 2], note: w[3] || '', g: gr.g, mood: gr.mood,
+      title: gr.title + (langs.length > 1 ? (code === 'de' ? ' · Deutsch' : ' · Englisch') : '') });
+  cur = Math.min(cur, calls.length - 1);
+}
+const firstOpen = () => { const i = calls.findIndex(c => !takes.has(c.key)); return i < 0 ? calls.length - 1 : i; };
+
+function renderCurrent() {
+  const c = calls[cur];
+  $('cWord').textContent = c.key.endsWith('_en') ? '“' + c.word + '”' : '„' + c.word + '“';
+  $('cMood').textContent = c.title;
+  $('cMood').classList.toggle('angry', c.g === 'extra');
+  $('cHint').textContent = [c.mood, c.note].filter(Boolean).join(' · ');
+  const done = calls.filter(x => takes.has(x.key)).length;
+  $('count').textContent = `${done} von ${calls.length} aufgenommen`;
+  const recording = !!recorder;
+  $('rec').textContent = recording ? 'Stopp' : takes.has(c.key) ? 'Neu aufnehmen' : 'Aufnahme';
+  $('rec').classList.toggle('on', recording);
+  $('back').disabled = recording || cur === 0;
+  $('next').disabled = recording || cur === calls.length - 1;
+  $('play').disabled = recording || !takes.has(c.key);
+}
+
+function renderWords() {
+  const box = $('words');
+  box.replaceChildren();
+  let sec, lastGroup;
+  calls.forEach((c, i) => {
+    if (c.title !== lastGroup) {
+      lastGroup = c.title; sec = document.createElement('div'); sec.className = 'group'; sec.dataset.g = c.g;
+      const h = document.createElement('h3'); h.textContent = c.title + (c.g === 'core' ? ' · Kern-Set' : '');
+      const p = document.createElement('p'); p.className = 'dim'; p.textContent = c.mood;
+      sec.append(h, p); box.append(sec);
+    }
+    const row = document.createElement('div'); row.className = 'word';
+    const b = document.createElement('b'); b.textContent = c.word;
+    if (c.note) { const s = document.createElement('small'); s.textContent = c.note; b.append(s); }
+    const chip = document.createElement('button');
+    const has = takes.has(c.key);
+    chip.className = 'chip' + (has ? ' done' : '') + (i === cur ? ' cur' : '');
+    chip.textContent = has ? '✓ neu' : 'aufnehmen';
+    chip.setAttribute('aria-label', `${c.word}${has ? ', aufgenommen, neu aufnehmen' : ', aufnehmen'}`);
+    chip.onclick = () => { if (!recorder) go(i); };
+    row.append(b, chip); sec.append(row);
+  });
+}
+
+function renderSend() {
+  const n = $('name').value.trim(), done = calls.filter(c => takes.has(c.key)).length;
+  $('name').classList.toggle('todo', !n);
+  $('fullname').classList.toggle('todo', !$('fullname').value.trim());
+  $('place').classList.toggle('todo', !$('place').value.trim());
+  $('credit').classList.toggle('todo', !$('credit').value);
+  $('sig').classList.toggle('todo', !signed);
+  const missing = [!n && 'dein Name oben', !$('fullname').value.trim() && 'Vor- und Nachname', !$('place').value.trim() && 'Ort',
+    !$('credit').value && 'Wunsch für die Credits', !$('adult').checked && 'Bestätigung, dass du volljährig bist',
+    !$('ok').checked && 'dein Einverständnis', !signed && 'deine Unterschrift', !done && 'mindestens eine Aufnahme'].filter(Boolean);
+  const open = calls.length - done;
+  $('sendHint').textContent = missing.length ? 'Noch offen: ' + missing.join(', ') + '.'
+    : open ? `Bereit, aber ${open} Aufnahmen fehlen noch. Du kannst trotzdem schon schicken.` : 'Alles aufgenommen, danke!';
+  $('save').disabled = $('share').disabled = missing.length > 0;
+}
+function render() { renderCurrent(); renderWords(); renderSend(); }
+function go(i) { cur = i; say(''); render(); }
+function say(text, bad) { $('status').textContent = text; $('status').classList.toggle('bad', !!bad); }
+
+async function openMic() {
+  if (stream) return;
+  stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  analyser = ctx.createAnalyser();
+  ctx.createMediaStreamSource(stream).connect(analyser);
+  const buf = new Float32Array(analyser.fftSize);
+  (function tick() {
+    analyser.getFloatTimeDomainData(buf);
+    let m = 0; for (const v of buf) m = Math.max(m, Math.abs(v));
+    $('bar').style.width = Math.min(100, m * 100) + '%';
+    $('bar').classList.toggle('hot', m > 0.95);
+    requestAnimationFrame(tick);
+  })();
+}
+
+async function toggle() {
+  if (recorder) { recorder.stop(); return; }
+  try { await openMic(); await ctx.resume(); }
+  catch (e) {
+    say('Kein Zugriff aufs Mikrofon. Erlaube es in der Adressleiste. Falls du den Link in WhatsApp oder Discord geöffnet hast, öffne ihn stattdessen in Chrome oder Safari.', true);
+    return;
+  }
+  const chunks = [], call = calls[cur];
+  recorder = new MediaRecorder(stream);
+  recorder.ondataavailable = e => chunks.push(e.data);
+  recorder.onstop = () => { clearTimeout(stopTimer); recorder = null; finish(call, chunks); };
+  recorder.start();
+  stopTimer = setTimeout(() => recorder && recorder.stop(), MAX_SECONDS * 1000);
+  say('Aufnahme läuft: jetzt sprechen, dann Stopp drücken.');
+  renderCurrent();
+}
+
+async function finish(call, chunks) {
+  try {
+    const audio = await ctx.decodeAudioData(await new Blob(chunks).arrayBuffer());
+    const s = audio.getChannelData(0);
+    let peak = 0; for (const v of s) peak = Math.max(peak, Math.abs(v));
+    if (audio.duration < MIN_SECONDS || peak < MIN_PEAK) {
+      say(audio.duration < MIN_SECONDS ? 'Das war zu kurz, bitte noch einmal.' : 'Da war kaum etwas zu hören. Geh näher ans Mikrofon und versuch es noch einmal.', true);
+      render(); return;
+    }
+    const data = wav(audio);
+    takes.set(call.key, data);
+    let saved = true;
+    try { await store(st => st.put(data, call.key)); } catch { saved = false; }
+    if (peak > 0.99) say('Das war übersteuert. Geh etwas weiter weg und nimm es am besten neu auf.', true);
+    else {
+      say(saved ? `„${call.word}“ gespeichert.` : 'Aufgenommen, aber dein Browser speichert nicht dauerhaft. Bitte die Seite nicht neu laden, bevor du das ZIP geladen hast.', !saved);
+      if (calls[cur] === call && cur < calls.length - 1) cur = takes.has(calls[cur + 1].key) ? firstOpen() : cur + 1;
+    }
+  } catch { say('Die Aufnahme ließ sich nicht verarbeiten, bitte noch einmal.', true); }
+  render();
+}
+
+// 16 Bit Mono, kanonisches Format wie im Vermieter-Recorder
+function wav(a) {
+  const n = a.length, d = new DataView(new ArrayBuffer(44 + n * 2)), s = a.getChannelData(0);
+  const str = (o, t) => { for (let i = 0; i < t.length; i++) d.setUint8(o + i, t.charCodeAt(i)); };
+  str(0, 'RIFF'); d.setUint32(4, 36 + n * 2, true); str(8, 'WAVEfmt '); d.setUint32(16, 16, true); d.setUint16(20, 1, true); d.setUint16(22, 1, true);
+  d.setUint32(24, a.sampleRate, true); d.setUint32(28, a.sampleRate * 2, true); d.setUint16(32, 2, true); d.setUint16(34, 16, true); str(36, 'data'); d.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) d.setInt16(44 + i * 2, Math.max(-1, Math.min(1, s[i])) * 32767, true);
+  return d.buffer;
+}
+
+const CRC = Array.from({ length: 256 }, (_, n) => { for (let k = 0; k < 8; k++) n = n & 1 ? 0xedb88320 ^ (n >>> 1) : n >>> 1; return n >>> 0; });
+function crc32(u8) { let c = ~0; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return ~c >>> 0; }
+
+// ZIP ohne Kompression: WAV packt sich kaum, und so braucht es keine Bibliothek
+function zip(files) {
+  const enc = new TextEncoder(), parts = [], central = [];
+  let offset = 0;
+  for (const { name, bytes } of files) {
+    const nm = enc.encode(name), crc = crc32(bytes);
+    const common = v => { v.setUint16(0, 20, true); v.setUint16(2, 0x0800, true); v.setUint16(4, 0, true); v.setUint16(6, 0, true); v.setUint16(8, 0x21, true);
+      v.setUint32(10, crc, true); v.setUint32(14, bytes.length, true); v.setUint32(18, bytes.length, true); v.setUint16(22, nm.length, true); v.setUint16(24, 0, true); };
+    const lh = new DataView(new ArrayBuffer(30)); lh.setUint32(0, 0x04034b50, true); common(new DataView(lh.buffer, 4));
+    const ch = new DataView(new ArrayBuffer(46)); ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); common(new DataView(ch.buffer, 6)); ch.setUint32(42, offset, true);
+    parts.push(lh.buffer, nm, bytes); central.push(ch.buffer, nm);
+    offset += 30 + nm.length + bytes.length;
+  }
+  const size = central.reduce((n, p) => n + p.byteLength, 0);
+  const end = new DataView(new ArrayBuffer(22)); end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true); end.setUint32(12, size, true); end.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, end.buffer], { type: 'application/zip' });
+}
+
+function buildZip() {
+  const name = $('name').value.trim();
+  const list = calls.filter(c => takes.has(c.key));
+  const date = new Date().toLocaleDateString('de-DE'), credit = $('credit').value + ($('nick').value.trim() ? ` (${$('nick').value.trim()})` : '');
+  const info = `Name: ${name}\nRolle: Zoll (Zollbeamte/r bei der Razzia)\nDatum: ${new Date().toISOString().slice(0, 10)}\nAufnahmen: ${list.length} von ${calls.length}\n`;
+  const deal = `VEREINBARUNG ÜBER DIE NUTZUNG VON SPRACHAUFNAHMEN\n\n${dealPlain()}\n\n` +
+    `Sprecher/in: ${$('fullname').value.trim()}\nOrt, Datum: ${$('place').value.trim()}, ${date}\nNennung in den Credits: ${credit}\n` +
+    `Volljährig bestätigt: ja\nEinverstanden: ja (angeklickt und unterschrieben, siehe Unterschrift.png)\n` +
+    `Aufgenommene Dateien (${list.length}):\n${list.map(c => '  ' + c.key + '.wav').join('\n')}\n`;
+  const png = atob($('sig').toDataURL('image/png').split(',')[1]), sigBytes = Uint8Array.from(png, ch => ch.charCodeAt(0));
+  const blob = zip([{ name: 'info.txt', bytes: new TextEncoder().encode(info) }, { name: 'Vereinbarung.txt', bytes: new TextEncoder().encode(deal) },
+    { name: 'Unterschrift.png', bytes: sigBytes }, ...list.map(c => ({ name: c.key + '.wav', bytes: new Uint8Array(takes.get(c.key)) }))]);
+  return new File([blob], `Stimme_Zoll_${name.replace(/[^\p{L}\p{N}]+/gu, '-')}.zip`, { type: 'application/zip' });
+}
+
+$('rec').onclick = toggle;
+$('back').onclick = () => go(cur - 1);
+$('next').onclick = () => go(cur + 1);
+$('play').onclick = () => {
+  if (player) player.pause();
+  player = new Audio(URL.createObjectURL(new Blob([takes.get(calls[cur].key)], { type: 'audio/wav' })));
+  player.play();
+};
+addEventListener('keydown', e => {
+  if (e.repeat || e.target.matches('input, select')) return;
+  if (e.key === 'r' || e.key === 'R') toggle();
+  if ((e.key === 'p' || e.key === 'P') && !$('play').disabled) $('play').click();
+});
+$('save').onclick = () => {
+  const file = buildZip(), a = document.createElement('a');
+  a.href = URL.createObjectURL(file); a.download = file.name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+};
+$('share').onclick = async () => {
+  try { await navigator.share({ files: [buildZip()], title: 'Stimme für ShishaBarSim' }); }
+  catch (e) { if (e.name !== 'AbortError') $('share').hidden = true; }
+};
+$('share').hidden = !(navigator.canShare && navigator.canShare({ files: [new File(['x'], 'x.zip', { type: 'application/zip' })] }));
+
+let resetArmed = false;
+$('reset').onclick = async () => {
+  if (!resetArmed) { resetArmed = true; $('resetHint').textContent = 'Löscht alle Aufnahmen auf diesem Gerät. Zum Bestätigen noch einmal tippen.'; return; }
+  resetArmed = false; $('resetHint').textContent = '';
+  takes.clear(); try { await store(st => st.clear()); } catch {}
+  $('ok').checked = $('adult').checked = false; $('sigClear').click(); cur = 0; say(''); render();
+};
+
+if (prefs.get('name')) $('name').value = prefs.get('name');
+$('name').addEventListener('input', () => { prefs.set('name', $('name').value); render(); });
+// Vereinbarung: eine Quelle für Anzeige und Vereinbarung.txt. ponytail: kein Anwalt drübergegangen, bei bezahlten Profis prüfen lassen.
+const DEAL = [
+  'Diese Vereinbarung gilt zwischen dir (Sprecher/in) und Marv, dem Entwickler des Computerspiels ShishaBarSim (Entwickler). Sie betrifft die Sprachaufnahmen, die du auf dieser Seite für die Rolle „Zoll“ (Zollbeamte/r) aufnimmst und dem Entwickler schickst.',
+  'Du erlaubst dem Entwickler, die Aufnahmen im Spiel ShishaBarSim zu verwenden, in allen Versionen, Updates, Erweiterungen (DLCs) und Nachfolgern, auf allen Plattformen (z. B. Steam) und in allen Sprachen. Das gilt weltweit, zeitlich unbegrenzt und auch für den kommerziellen Verkauf des Spiels.',
+  'Du erlaubst außerdem, die Aufnahmen in Werbung für das Spiel zu verwenden, z. B. in Trailern, Videos, Streams, Screenshots mit Ton und Social-Media-Beiträgen.',
+  'Der Entwickler darf die Aufnahmen bearbeiten: schneiden, kürzen, lauter oder leiser machen, mit Effekten versehen (z. B. Hall, Funk-Klang) und die Tonhöhe leicht verändern, solange erkennbar deine Rolle gesprochen wird.',
+  'Der Entwickler darf diese Rechte an Dritte weitergeben, die das Spiel mit ihm veröffentlichen oder übernehmen (z. B. ein Publisher oder eine eigene Firma des Entwicklers). Das Recht ist nicht exklusiv: Du darfst deine Stimme natürlich weiter für alles andere nutzen.',
+  'Die Aufnahmen werden nicht dazu verwendet, eine KI-Stimme oder einen Stimmklon von dir zu erzeugen oder zu trainieren. Dafür bräuchte es eine eigene, ausdrückliche Zustimmung.',
+  'Du bekommst für die Aufnahmen und diese Rechte kein Geld. Du kannst wählen, ob und wie du in den Credits des Spiels genannt wirst. Der Entwickler hält sich daran, soweit das Spiel Credits hat.',
+  'Du versicherst, dass du die Aufnahmen selbst gesprochen hast und keine Rechte anderer verletzt (z. B. keine Musik im Hintergrund).',
+  'Datenschutz: Deine Stimme, dein Name und dein Ort werden nur für das Spiel, die Credits und als Nachweis dieser Vereinbarung gespeichert und nicht weitergegeben, außer im Rahmen von Punkt 5.',
+  'Für bereits veröffentlichte Versionen kann die Erlaubnis nicht zurückgenommen werden. Wenn du es dir anders überlegst, bevor deine Stimme in einer veröffentlichten Version ist, sag dem Entwickler Bescheid. Dann werden die Aufnahmen nicht verwendet und gelöscht.',
+  'Es gilt deutsches Recht. Sollte ein Punkt unwirksam sein, bleiben die übrigen Punkte gültig.',
+];
+const dealPlain = () => DEAL.map((t, i) => `${i + 1}. ${t}`).join('\n\n');
+{ const ol = document.createElement('ol'); for (const t of DEAL) { const li = document.createElement('li'); li.textContent = t; ol.append(li); } $('dealText').append(ol); }
+
+// Unterschrift: einfache Linie mit Zeiger-Events
+let signed = false;
+{ const cv = $('sig'), g = cv.getContext('2d'); let down = false;
+  const pos = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height]; };
+  const clear = () => { g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.lineWidth = 3; g.lineCap = g.lineJoin = 'round'; g.strokeStyle = '#111'; signed = false; renderSend(); };
+  cv.onpointerdown = e => { down = true; cv.setPointerCapture(e.pointerId); g.beginPath(); g.moveTo(...pos(e)); };
+  cv.onpointermove = e => { if (!down) return; g.lineTo(...pos(e)); g.stroke(); if (!signed) { signed = true; renderSend(); } };
+  cv.onpointerup = cv.onpointercancel = () => { down = false; };
+  $('sigClear').onclick = clear;
+  clear(); }
+for (const id of ['fullname', 'place', 'nick']) { if (prefs.get(id)) $(id).value = prefs.get(id); $(id).addEventListener('input', () => { prefs.set(id, $(id).value); renderSend(); }); }
+for (const id of ['credit', 'adult']) $(id).addEventListener('input', renderSend);
+$('ok').addEventListener('input', renderSend);
+if (prefs.get('lang')) $('lang').value = prefs.get('lang');
+$('lang').addEventListener('input', () => { prefs.set('lang', $('lang').value); buildCalls(); cur = firstOpen(); render(); });
+
+buildCalls();
+render();
+loadTakes().then(() => { cur = firstOpen(); render(); });
+</script>
+</body>
+</html>
