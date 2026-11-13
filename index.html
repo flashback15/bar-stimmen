@@ -60,6 +60,11 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .consent { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 11px; cursor: pointer; }
 .consent input { width: 20px; height: 20px; margin: 3px 0 0; accent-color: var(--teal); }
 #count { font-variant-numeric: tabular-nums; }
+.deal { background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; font-size: 14px; }
+.deal summary { font-weight: 800; cursor: pointer; }
+.deal ol { padding-left: 20px; margin: 10px 0 0; display: grid; gap: 8px; }
+#sig { width: 100%; height: 160px; background: #fff; border-radius: 9px; touch-action: none; cursor: crosshair; }
+#sig.todo { outline: 2px solid var(--teal); }
 @media (prefers-reduced-motion: no-preference) { #rec.on { animation: pulse 1.2s infinite; } @keyframes pulse { 50% { opacity: .75; } } }
 </style>
 </head>
@@ -67,7 +72,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 <main>
   <header>
     <h1>Leih der Bar deine Stimme</h1>
-    <p class="dim">In ShishaBarSim rufen die Gäste bald nach dem, was sie wollen: „Kohle!“, „Cola!“, „Zahlen!“. Dafür brauche ich echte Stimmen. Du nimmst hier direkt im Browser auf, das dauert etwa fünf Minuten.</p>
+    <p class="dim">In ShishaBarSim rufen die Gäste bald nach dem, was sie wollen: „Kohle!“, „Cola!“, „Zahlen!“. Dafür brauche ich echte Stimmen. Du nimmst hier direkt im Browser auf, das dauert etwa zehn Minuten. Bitte nimm alles auf, erst Deutsch, dann Englisch. Nur mit allen Wörtern kann ich deine Stimme im Spiel benutzen.</p>
   </header>
 
   <section class="panel" aria-labelledby="h-you">
@@ -78,12 +83,6 @@ button:disabled { opacity: .45; cursor: not-allowed; }
           <option value="">Bitte wählen</option>
           <option value="Frau">Frauenstimme</option>
           <option value="Mann">Männerstimme</option>
-        </select>
-      </label>
-      <label class="field">Sprache
-        <select id="lang">
-          <option value="de">Nur Deutsch</option>
-          <option value="both">Deutsch und Englisch</option>
         </select>
       </label>
       <label class="field">Dein Name
@@ -124,9 +123,36 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   </section>
 
   <section class="panel" aria-labelledby="h-send">
-    <h2 id="h-send">Fertig? Schick es mir</h2>
+    <h2 id="h-send">Fertig? Erst kurz unterschreiben</h2>
+    <p class="dim">Damit Marv deine Stimme im Spiel verwenden darf, braucht er deine Erlaubnis. Bitte einmal durchlesen, ausfüllen und unterschreiben. Die Vereinbarung und deine Unterschrift kommen automatisch mit in die ZIP-Datei.</p>
+    <details class="deal" open><summary>Vereinbarung über die Nutzung der Sprachaufnahmen</summary><div id="dealText"></div></details>
+    <div class="fields">
+      <label class="field">Vor- und Nachname
+        <input type="text" id="fullname" autocomplete="name" maxlength="80">
+      </label>
+      <label class="field">Ort
+        <input type="text" id="place" autocomplete="address-level2" maxlength="60">
+      </label>
+      <label class="field">Name in den Credits
+        <select id="credit">
+          <option value="">Bitte wählen</option>
+          <option value="Mit meinem vollen Namen">Mit meinem vollen Namen</option>
+          <option value="Mit meinem Vornamen / Spitznamen">Mit Vornamen / Spitznamen</option>
+          <option value="Gar nicht">Gar nicht nennen</option>
+        </select>
+      </label>
+      <label class="field">Spitzname (optional)
+        <input type="text" id="nick" autocomplete="off" maxlength="40">
+      </label>
+    </div>
+    <label class="consent"><input type="checkbox" id="adult">
+      <span>Ich bin mindestens 18 Jahre alt.</span></label>
     <label class="consent"><input type="checkbox" id="ok">
-      <span>Ich bin einverstanden, dass meine Aufnahme in ShishaBarSim verwendet wird, auch in der Version, die auf Steam verkauft wird. Dafür bekomme ich kein Geld.</span></label>
+      <span>Ich habe die Vereinbarung gelesen und bin einverstanden.</span></label>
+    <div class="field" style="font-weight:600;font-size:14px">Unterschrift (mit Finger oder Maus)
+      <canvas id="sig" width="600" height="160" aria-label="Unterschriftsfeld"></canvas>
+      <div class="row"><button id="sigClear" type="button">Unterschrift löschen</button></div>
+    </div>
     <p class="dim" id="sendHint"></p>
     <div class="row">
       <button class="go" id="save" disabled>ZIP herunterladen</button>
@@ -192,7 +218,7 @@ async function loadTakes() {
 
 function buildCalls() {
   calls = [];
-  for (const [l, code] of $('lang').value === 'both' ? [[1, 'de'], [2, 'en']] : [[1, 'de']])
+  for (const [l, code] of [[1, 'de'], [2, 'en']])
     for (const gr of GROUPS) for (const w of gr.words) for (const mood of Object.keys(MOODS))
       calls.push({ key: `${w[0]}_${mood}_${code}`, word: w[l], mood, note: code === 'de' ? w[3] : '', id: w[0], code, g: gr.g, title: gr.title });
   cur = Math.min(cur, calls.length - 1);
@@ -216,7 +242,7 @@ function renderCurrent() {
 }
 
 function renderWords() {
-  const box = $('words'), both = $('lang').value === 'both';
+  const box = $('words'), both = true;
   box.replaceChildren();
   let sec, lastGroup, row, lastWord;
   calls.forEach((c, i) => {
@@ -244,12 +270,15 @@ function renderWords() {
 }
 
 function renderSend() {
-  const v = $('voice').value, n = $('name').value.trim(), done = calls.filter(c => takes.has(c.key)).length;
+  const v = $('voice').value, n = $('name').value.trim(), open = calls.filter(c => !takes.has(c.key)).length;
   $('voice').classList.toggle('todo', !v);
-  const missing = [!v && 'das Geschlecht der Stimme', !n && 'dein Name', !$('ok').checked && 'dein Einverständnis', !done && 'mindestens eine Aufnahme'].filter(Boolean);
-  const open = calls.length - done;
-  $('sendHint').textContent = missing.length ? 'Noch offen: ' + missing.join(', ') + '.'
-    : open ? `Bereit, aber ${open} Aufnahmen fehlen noch. Du kannst trotzdem schon schicken.` : 'Alles aufgenommen, danke!';
+  for (const id of ['fullname', 'place']) $(id).classList.toggle('todo', !$(id).value.trim());
+  $('credit').classList.toggle('todo', !$('credit').value);
+  $('sig').classList.toggle('todo', !signed);
+  const missing = [!v && 'das Geschlecht der Stimme', !n && 'dein Name oben', !$('fullname').value.trim() && 'Vor- und Nachname', !$('place').value.trim() && 'Ort',
+    !$('credit').value && 'Wunsch für die Credits', !$('adult').checked && 'Bestätigung, dass du volljährig bist',
+    !$('ok').checked && 'dein Einverständnis', !signed && 'deine Unterschrift', open && `${open} Aufnahmen`].filter(Boolean);
+  $('sendHint').textContent = missing.length ? 'Noch offen: ' + missing.join(', ') + '.' : 'Alles aufgenommen, danke!';
   $('save').disabled = $('share').disabled = missing.length > 0;
 }
 function render() { renderCurrent(); renderWords(); renderSend(); }
@@ -345,9 +374,15 @@ function zip(files) {
 function buildZip() {
   const voice = $('voice').value, name = $('name').value.trim();
   const list = calls.filter(c => takes.has(c.key));
-  const info = `Name: ${name}\nStimme: ${voice}\nDatum: ${new Date().toISOString().slice(0, 10)}\nAufnahmen: ${list.length} von ${calls.length}\n` +
-    `Einverständnis: Ich bin einverstanden, dass meine Aufnahme in ShishaBarSim verwendet wird, auch in der Version, die auf Steam verkauft wird. Dafür bekomme ich kein Geld.\n`;
-  const blob = zip([{ name: 'info.txt', bytes: new TextEncoder().encode(info) }, ...list.map(c => ({ name: c.key + '.wav', bytes: new Uint8Array(takes.get(c.key)) }))]);
+  const date = new Date().toLocaleDateString('de-DE'), credit = $('credit').value + ($('nick').value.trim() ? ` (${$('nick').value.trim()})` : '');
+  const info = `Name: ${name}\nStimme: ${voice}\nRolle: Gäste\nDatum: ${new Date().toISOString().slice(0, 10)}\nAufnahmen: ${list.length} von ${calls.length}\n`;
+  const deal = `VEREINBARUNG ÜBER DIE NUTZUNG VON SPRACHAUFNAHMEN\n\n${dealPlain()}\n\n` +
+    `Sprecher/in: ${$('fullname').value.trim()}\nOrt, Datum: ${$('place').value.trim()}, ${date}\nNennung in den Credits: ${credit}\n` +
+    `Volljährig bestätigt: ja\nEinverstanden: ja (angeklickt und unterschrieben, siehe Unterschrift.png)\n` +
+    `Aufgenommene Dateien (${list.length}):\n${list.map(c => '  ' + c.key + '.wav').join('\n')}\n`;
+  const png = atob($('sig').toDataURL('image/png').split(',')[1]), sigBytes = Uint8Array.from(png, ch => ch.charCodeAt(0));
+  const blob = zip([{ name: 'info.txt', bytes: new TextEncoder().encode(info) }, { name: 'Vereinbarung.txt', bytes: new TextEncoder().encode(deal) },
+    { name: 'Unterschrift.png', bytes: sigBytes }, ...list.map(c => ({ name: c.key + '.wav', bytes: new Uint8Array(takes.get(c.key)) }))]);
   return new File([blob], `Stimme_${voice}_${name.replace(/[^\p{L}\p{N}]+/gu, '-')}.zip`, { type: 'application/zip' });
 }
 
@@ -380,14 +415,43 @@ $('reset').onclick = async () => {
   if (!resetArmed) { resetArmed = true; $('resetHint').textContent = 'Löscht alle Aufnahmen auf diesem Gerät. Zum Bestätigen noch einmal tippen.'; return; }
   resetArmed = false; $('resetHint').textContent = '';
   takes.clear(); try { await store(st => st.clear()); } catch {}
-  $('ok').checked = false; cur = 0; say(''); render();
+  $('ok').checked = $('adult').checked = false; $('sigClear').click(); cur = 0; say(''); render();
 };
 
-for (const id of ['voice', 'lang', 'name']) {
+for (const id of ['voice', 'name']) {
   if (prefs.get(id)) $(id).value = prefs.get(id);
-  $(id).addEventListener('input', () => { prefs.set(id, $(id).value); if (id === 'lang') buildCalls(); render(); });
+  $(id).addEventListener('input', () => { prefs.set(id, $(id).value); render(); });
 }
 $('ok').addEventListener('input', renderSend);
+// Vereinbarung: eine Quelle für Anzeige und Vereinbarung.txt. ponytail: kein Anwalt drübergegangen, bei bezahlten Profis prüfen lassen.
+const DEAL = [
+  'Diese Vereinbarung gilt zwischen dir (Sprecher/in) und Marv, dem Entwickler des Computerspiels ShishaBarSim (Entwickler). Sie betrifft die Sprachaufnahmen, die du auf dieser Seite für die Gäste der Bar aufnimmst und dem Entwickler schickst.',
+  'Du erlaubst dem Entwickler, die Aufnahmen im Spiel ShishaBarSim zu verwenden, in allen Versionen, Updates, Erweiterungen (DLCs) und Nachfolgern, auf allen Plattformen (z. B. Steam) und in allen Sprachen. Das gilt weltweit, zeitlich unbegrenzt und auch für den kommerziellen Verkauf des Spiels.',
+  'Du erlaubst außerdem, die Aufnahmen in Werbung für das Spiel zu verwenden, z. B. in Trailern, Videos, Streams, Screenshots mit Ton und Social-Media-Beiträgen.',
+  'Der Entwickler darf die Aufnahmen bearbeiten: schneiden, kürzen, lauter oder leiser machen, mit Effekten versehen (z. B. Hall, Funk-Klang) und die Tonhöhe leicht verändern, solange erkennbar deine Rolle gesprochen wird.',
+  'Der Entwickler darf diese Rechte an Dritte weitergeben, die das Spiel mit ihm veröffentlichen oder übernehmen (z. B. ein Publisher oder eine eigene Firma des Entwicklers). Das Recht ist nicht exklusiv: Du darfst deine Stimme natürlich weiter für alles andere nutzen.',
+  'Die Aufnahmen werden nicht dazu verwendet, eine KI-Stimme oder einen Stimmklon von dir zu erzeugen oder zu trainieren. Dafür bräuchte es eine eigene, ausdrückliche Zustimmung.',
+  'Du bekommst für die Aufnahmen und diese Rechte kein Geld. Du kannst wählen, ob und wie du in den Credits des Spiels genannt wirst. Der Entwickler hält sich daran, soweit das Spiel Credits hat.',
+  'Du versicherst, dass du die Aufnahmen selbst gesprochen hast und keine Rechte anderer verletzt (z. B. keine Musik im Hintergrund).',
+  'Datenschutz: Deine Stimme, dein Name und dein Ort werden nur für das Spiel, die Credits und als Nachweis dieser Vereinbarung gespeichert und nicht weitergegeben, außer im Rahmen von Punkt 5.',
+  'Für bereits veröffentlichte Versionen kann die Erlaubnis nicht zurückgenommen werden. Wenn du es dir anders überlegst, bevor deine Stimme in einer veröffentlichten Version ist, sag dem Entwickler Bescheid. Dann werden die Aufnahmen nicht verwendet und gelöscht.',
+  'Es gilt deutsches Recht. Sollte ein Punkt unwirksam sein, bleiben die übrigen Punkte gültig.',
+];
+const dealPlain = () => DEAL.map((t, i) => `${i + 1}. ${t}`).join('\n\n');
+{ const ol = document.createElement('ol'); for (const t of DEAL) { const li = document.createElement('li'); li.textContent = t; ol.append(li); } $('dealText').append(ol); }
+
+// Unterschrift: einfache Linie mit Zeiger-Events
+let signed = false;
+{ const cv = $('sig'), g = cv.getContext('2d'); let down = false;
+  const pos = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height]; };
+  const clear = () => { g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.lineWidth = 3; g.lineCap = g.lineJoin = 'round'; g.strokeStyle = '#111'; signed = false; renderSend(); };
+  cv.onpointerdown = e => { down = true; cv.setPointerCapture(e.pointerId); g.beginPath(); g.moveTo(...pos(e)); };
+  cv.onpointermove = e => { if (!down) return; g.lineTo(...pos(e)); g.stroke(); if (!signed) { signed = true; renderSend(); } };
+  cv.onpointerup = cv.onpointercancel = () => { down = false; };
+  $('sigClear').onclick = clear;
+  clear(); }
+for (const id of ['fullname', 'place', 'nick']) { if (prefs.get(id)) $(id).value = prefs.get(id); $(id).addEventListener('input', () => { prefs.set(id, $(id).value); renderSend(); }); }
+for (const id of ['credit', 'adult']) $(id).addEventListener('input', renderSend);
 
 buildCalls();
 render();
